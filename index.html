@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Writo: honest feedback on your IELTS Writing Task 2 essay</title>
+<meta name="description" content="Paste your essay, get a band range for each criterion and your three biggest mistakes. Free beta.">
+<style>
+:root{--bg:#f2f5f3;--ink:#16202a;--mute:#55636e;--line:#cfd9d4;--accent:#1f6f5c;--pen:#b4372f;--card:#ffffff}
+@media (prefers-color-scheme:dark){:root{--bg:#10171c;--ink:#e8eef0;--mute:#9aa8b1;--line:#27343c;--accent:#58c4a5;--pen:#ff8a80;--card:#182229}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:720px;margin:0 auto;padding:32px 20px 64px}
+h1,h2,.range{font-family:Georgia,"Times New Roman",serif;font-weight:700}
+h1{font-size:clamp(30px,6vw,44px);line-height:1.1;margin:0 0 12px}
+.lead{color:var(--mute);margin:0 0 28px;max-width:56ch}
+label{display:block;font-weight:600;margin:18px 0 6px}
+textarea,input{width:100%;font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:6px;padding:12px}
+textarea{min-height:280px;line-height:1.6;resize:vertical}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.row{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:10px;flex-wrap:wrap}
+#count{color:var(--mute);font-size:15px}
+button{font:inherit;font-weight:700;background:var(--accent);color:#fff;border:0;border-radius:6px;padding:12px 22px;cursor:pointer}
+@media (prefers-color-scheme:dark){button{color:#0b1410}}
+button:disabled{opacity:.55;cursor:wait}
+#err{color:var(--pen);margin-top:12px;min-height:1.5em}
+#result{margin-top:28px}
+.overall{border-left:6px solid var(--accent);padding:4px 0 4px 18px;margin-bottom:24px}
+.range{font-size:56px;line-height:1}
+.crit{border-top:1px solid var(--line);padding:14px 0}
+.crit b{display:flex;justify-content:space-between;gap:12px}
+.crit p,.fix p{margin:4px 0 0;color:var(--mute)}
+.quote{border-left:4px solid var(--pen);padding-left:12px;margin:0 0 6px;font-style:italic}
+.fix{margin:16px 0}
+.note{font-size:14px;color:var(--mute);margin-top:32px;border-top:1px solid var(--line);padding-top:16px}
+</style>
+</head>
+<body>
+<main>
+<h1>Find out what is holding your IELTS essay back</h1>
+<p class="lead">Paste a Task 2 essay. You get a band range for each of the four criteria, your biggest mistakes quoted from your own text, and three next steps. Free while in beta. Your essay is not saved.</p>
+
+<label for="q">Essay question (recommended)</label>
+<input id="q" maxlength="600" placeholder="Some people think that… To what extent do you agree?">
+
+<label for="essay">Your essay</label>
+<textarea id="essay" placeholder="Paste your essay here (120 to 500 words)"></textarea>
+<div class="row"><span id="count">0 words</span><button id="go" type="button">Check my essay</button></div>
+<div id="err" role="alert"></div>
+<div id="result" aria-live="polite"></div>
+
+<p class="note">Writo is in beta and is not affiliated with IELTS, the British Council, IDP or Cambridge. Results are an unofficial estimate from an AI, shown as ranges because AI scoring is never exact. Your text is sent to Cloudflare Workers AI to produce the result and is not stored by Writo.</p>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const NAMES = {task_response:"Task response",coherence_cohesion:"Coherence and cohesion",lexical_resource:"Vocabulary",grammar:"Grammar"};
+const fmt = (r) => r.low === r.high ? r.low.toFixed(1) : r.low.toFixed(1) + "–" + r.high.toFixed(1);
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+const words = () => $("essay").value.trim().split(/\s+/).filter(Boolean).length;
+
+$("essay").addEventListener("input", () => { $("count").textContent = words() + " words"; });
+
+$("go").addEventListener("click", async () => {
+  $("err").textContent = ""; $("result").replaceChildren();
+  $("go").disabled = true; $("go").textContent = "Checking…";
+  try {
+    const res = await fetch("/api/check", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({essay: $("essay").value, question: $("q").value})
+    });
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error || "Something went wrong.");
+    render(d);
+  } catch (e) {
+    $("err").textContent = e.message;
+  } finally {
+    $("go").disabled = false; $("go").textContent = "Check my essay";
+  }
+});
+
+function render(d) {
+  const out = $("result");
+  const o = el("div", "overall");
+  o.append(el("div", "", "Estimated overall band"), el("div", "range", fmt(d.overall)));
+  out.append(o);
+  for (const k in NAMES) {
+    const c = el("div", "crit");
+    const b = el("b"); b.append(el("span", "", NAMES[k]), el("span", "", fmt(d.criteria[k])));
+    c.append(b, el("p", "", d.criteria[k].comment));
+    out.append(c);
+  }
+  if (d.mistakes.length) {
+    out.append(el("h2", "", "Your biggest mistakes"));
+    for (const m of d.mistakes) {
+      const f = el("div", "fix");
+      f.append(el("p", "quote", m.quote), el("p", "", m.problem), el("p", "", "Better: " + m.fix));
+      out.append(f);
+    }
+  }
+  if (d.next_steps.length) {
+    out.append(el("h2", "", "Next steps"));
+    const ul = el("ul"); d.next_steps.forEach((s) => ul.append(el("li", "", s))); out.append(ul);
+  }
+}
+</script>
+</body>
+</html>

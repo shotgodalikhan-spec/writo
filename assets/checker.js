@@ -98,50 +98,108 @@
     clearInterval(ticking); ticking = null; left = total; drawTimer(); $("timer-start").textContent = "Start";
   });
 
-  // Guests get GUEST_TOTAL checks in this browser, no sign-up needed.
-  // The server has its own daily limit per network; this counter decides when to suggest an account.
-  var GUEST_TOTAL = 3, GUEST_KEY = "writo-guest-used";
-  var userDaily = function () { return (me.limits && me.limits.user) || 5; };
-  function guestUsed() {
-    try { return Math.max(0, parseInt(localStorage.getItem(GUEST_KEY), 10) || 0); } catch (e) { return 0; }
-  }
-  function addGuestUse() {
-    try { localStorage.setItem(GUEST_KEY, String(guestUsed() + 1)); } catch (e) {}
-  }
-  function guestLeft() { return Math.max(0, GUEST_TOTAL - guestUsed()); }
 
-  function showLeft(n, loggedIn) {
-    if (n == null) return;
-    if (!loggedIn) {
-      var g = Math.min(n, guestLeft());
-      $("left").textContent = guestLeft() === 0 || g === 0
-        ? "Your free checks are used up. Sign up free to get " + userDaily() + " more every day."
-        : guestUsed() === 0 ? "" : g + " of " + GUEST_TOTAL + " free checks left. Sign up to get " + userDaily() + " more every day.";
-      return;
-    }
-    $("left").textContent = n === 0 ? "No free checks left today." : n + (n === 1 ? " check" : " checks") + " left today.";
-  }
-  var me = { user: null };
-  W.me.then(function (m) { me = m; showLeft(m.remaining, Boolean(m.user)); W._user = m.user; });
+  /* ---------- Checks left today ---------- */
+  // The server is the only counter (lib/quota.js): /api/me on load, then every /api/check answer.
+  var me = { user: null, remaining: null, limits: { guest: 2, user: 5 } };
+  var daily = function () { return me.user ? me.limits.user : me.limits.guest; };
+  var hoursLeft = function () { return Math.max(1, Math.round((me.resetInSeconds || 3600) / 3600)); };
 
-  // Shown when a guest has used all free checks: sign up right here and get more checks.
+  function setQuota(r) {
+    if (r.remaining != null) me.remaining = r.remaining;
+    if (r.limit !== undefined) me.limit = r.limit;
+    if (r.resetInSeconds) me.resetInSeconds = r.resetInSeconds;
+    if (me.remaining > 0) me.limit = null;
+    // A successful check that used the last one says "0 left" without naming a rule: it is the person's own limit.
+    else if (me.remaining === 0 && !me.limit) me.limit = me.user ? "user" : "guest";
+    drawQuota();
+  }
+  function quotaText() {
+    return me.remaining == null ? "" : "Checks left today: " + me.remaining + " of " + daily();
+  }
+  function drawQuota() {
+    document.querySelectorAll("[data-quota]").forEach(function (el) { el.textContent = quotaText(); });
+    var out = me.remaining === 0, box = $("out");
+    var saved = Boolean(findRecent(essayEl.value, taskEl.value));
+    btn.disabled = busy || (out && !saved);
+    btn.textContent = out && saved ? "Show saved result" : "Check my essay";
+    if (!out) { box.hidden = true; return; }
+    var msg = {
+      guest: "You have used today's " + daily() + " free checks. A free account gives you " + me.limits.user + " checks every day.",
+      user: "You have used all " + daily() + " checks for today.",
+      ip: "Too many checks from your network today.",
+      global: "Writo has reached its free daily capacity."
+    }[me.limit] || "No checks left today.";
+    box.innerHTML = W.esc(msg) + " New checks in about " + hoursLeft() + " h. Your essay stays here, you can keep editing it." +
+      (!me.user && me.limit === "guest" ? ' <button class="btn sm" type="button" data-gate>Create free account</button>' : "");
+    box.hidden = false;
+    var g = box.querySelector("[data-gate]");
+    if (g) g.addEventListener("click", openGate);
+  }
+  W.me.then(function (m) {
+    me.user = m.user;
+    if (m.limits) me.limits = m.limits;
+    setQuota(m);
+  });
+
+  /* ---------- My recent checks (guest, this device only) ---------- */
+  // Guests' essays are never stored on the server. Up to 20 checks stay in this browser, one per essay,
+  // and move to the account at sign-up (site.js W.signup).
+  var RECENT_KEY = "writo-recent", RECENT_MAX = 20;
+  function norm(s) { return String(s || "").replace(/[  -​  　]/g, " ").replace(/\s+/g, " ").trim(); }
+  function sameKey(essay, task) { return norm(essay) + "\n" + norm(task); }
+  function readRecent() {
+    try { var l = JSON.parse(localStorage.getItem(RECENT_KEY) || "[]"); return Array.isArray(l) ? l : []; } catch (e) { return []; }
+  }
+  function writeRecent(l) { try { localStorage.setItem(RECENT_KEY, JSON.stringify(l.slice(0, RECENT_MAX))); } catch (e) {} }
+  function findRecent(essay, task) {
+    if (me.user || !norm(essay)) return null;
+    var k = sameKey(essay, task);
+    return readRecent().filter(function (c) { return sameKey(c.essay, c.task) === k; })[0] || null;
+  }
+  function addRecent(essay, task, r) {
+    var k = sameKey(essay, task);
+    var l = readRecent().filter(function (c) { return sameKey(c.essay, c.task) !== k; });
+    l.unshift({ essay: essay, task: task, at: Date.now(), result: { overall: r.overall, criteria: r.criteria, mistakes: r.mistakes, rewrite: r.rewrite } });
+    writeRecent(l);
+  }
+  function drawRecent() {
+    var box = $("recent"), l = me.user ? [] : readRecent();
+    if (!l.length) { box.hidden = true; box.innerHTML = ""; return; }
+    box.innerHTML = '<h2 class="recent-title">My recent checks <span class="hint">saved on this device</span></h2><ul class="history">' +
+      l.map(function (c, i) {
+        var t = c.task ? c.task.slice(0, 90) + (c.task.length > 90 ? "…" : "") : norm(c.essay).slice(0, 70) + "…";
+        return '<li><div><b>' + W.esc(t) + '</b></div><span class="band">' + W.band(c.result.overall) + '</span><div class="muted small">' + W.date(c.at) + " · " + words(c.essay) + ' words · <button class="link-btn" type="button" data-recent="' + i + '">Open</button></div></li>';
+      }).join("") + "</ul>";
+    box.hidden = false;
+    box.querySelectorAll("[data-recent]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var c = readRecent()[Number(b.dataset.recent)];
+        if (!c) return;
+        essayEl.value = c.essay; taskEl.value = c.task || ""; updateCount(); saveDraft();
+        showSaved(c.result, c.essay, c.task || "", c.at);
+      });
+    });
+  }
+  W.me.then(drawRecent);
+
+  /* ---------- Sign-up window (guest out of checks) ---------- */
   // After sign-up the essay that is still in the box is checked automatically.
   var gate;
   function openGate() {
-    var n = W.esc(String(userDaily()));
+    var n = W.esc(String(me.limits.user));
     if (!gate) {
       gate = document.createElement("dialog");
       gate.className = "gate";
       gate.setAttribute("aria-labelledby", "gate-title");
       gate.innerHTML =
         '<form method="dialog" class="gate-close"><button class="icon-btn" aria-label="Close">×</button></form>' +
-        '<h2 id="gate-title">You have used your ' + GUEST_TOTAL + ' free checks</h2>' +
-        '<p><b class="gift">Sign up free and get ' + n + ' more checks, every day.</b> Your essay stays where it is and is checked right after.</p>' +
+        '<h2 id="gate-title">Get ' + n + ' free checks every day</h2>' +
+        '<p><b class="gift">A free account gives you ' + n + ' checks a day and keeps all your results.</b> Your essay stays where it is and is checked right after.</p>' +
         '<form id="gate-form" novalidate>' +
         '<div class="field"><label for="g-email">Email</label><input id="g-email" type="email" autocomplete="email" placeholder="you@gmail.com" required></div>' +
         '<div class="field"><label for="g-pass">Password <span class="hint">8+ characters</span></label><input id="g-pass" type="password" autocomplete="new-password" minlength="8" required></div>' +
         '<label class="check-row field"><input id="g-consent" type="checkbox" required><span>I agree to the <a href="/terms" target="_blank">Terms of use</a> and <a href="/privacy" target="_blank">Privacy policy</a>.</span></label>' +
-        '<label class="check-row field"><input id="g-history" type="checkbox" checked><span>Save my essays <span class="hint">(only you can see them)</span></span></label>' +
         '<div id="gate-err" role="alert" hidden></div>' +
         '<button class="btn big" type="submit">Get ' + n + ' free checks</button>' +
         "</form>" +
@@ -151,81 +209,123 @@
       $("gate-form").addEventListener("submit", function (e) {
         e.preventDefault();
         W.signup({
-          email: $("g-email"), password: $("g-pass"), consent: $("g-consent"), history: $("g-history"),
+          email: $("g-email"), password: $("g-pass"), consent: $("g-consent"),
           button: this.querySelector("button[type=submit]"), error: $("gate-err")
         }).then(function (res) {
           if (!res) return;
-          me.user = res.user || { email: $("g-email").value };
+          afterSignup(res, $("g-email").value);
           gate.close();
-          W.refreshAuth();
-          W.toast("Account created: " + userDaily() + " free checks a day");
-          errEl.hidden = true;
-          btn.click();
+          W.toast("Account created: " + me.limits.user + " free checks a day");
+          W.api("/api/me").then(function (m) {
+            if (m._ok) setQuota(m);
+            if (norm(essayEl.value) && me.remaining > 0) btn.click();
+          });
         });
       });
     }
     if (typeof gate.showModal === "function") { if (!gate.open) gate.showModal(); }
-    else showError({ error: "You have used your " + GUEST_TOTAL + " free checks. Sign up free to get " + userDaily() + " more every day.", limit: "guest" });
+    else location.href = "/signup";
+  }
+  function afterSignup(res, email) {
+    me.user = res.user || { email: email };
+    W.refreshAuth();
+    drawRecent();
   }
 
+  /* ---------- "Start a new essay?" window ---------- */
+  var fresh;
+  function askNewEssay() {
+    if (!fresh) {
+      fresh = document.createElement("dialog");
+      fresh.className = "gate confirm";
+      fresh.setAttribute("aria-labelledby", "fresh-title");
+      fresh.innerHTML = '<h2 id="fresh-title">Start a new essay?</h2><p id="fresh-text"></p>' +
+        '<div class="confirm-actions"><button class="btn" type="button" id="fresh-yes">Start new essay</button><button class="btn ghost" type="button" id="fresh-no">Cancel</button></div>';
+      document.body.appendChild(fresh);
+      fresh.addEventListener("click", function (e) { if (e.target === fresh) fresh.close(); });
+      $("fresh-no").addEventListener("click", function () { fresh.close(); });
+      $("fresh-yes").addEventListener("click", function () {
+        fresh.close();
+        essayEl.value = ""; taskEl.value = "";
+        updateCount(); saveDraft();
+        resEl.hidden = true; resEl.innerHTML = ""; errEl.hidden = true;
+        drawQuota();
+        $("try-title").scrollIntoView({ behavior: smooth(), block: "start" });
+        essayEl.focus({ preventScroll: true });
+      });
+    }
+    $("fresh-text").textContent = me.user ? "This one is saved in your account history." : "This one is saved in My recent checks on this device.";
+    if (typeof fresh.showModal === "function") fresh.showModal();
+    else $("fresh-yes").click();
+  }
+  function smooth() { return window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"; }
+
+  /* ---------- Checking ---------- */
   var stages = ["Reading your essay", "Scoring the four criteria", "Finding your key mistakes", "Rewriting your weakest paragraph"];
-  var stageTimer;
+  var stageTimer, busy = false;
   function loading(on) {
+    busy = on;
     $("loading").hidden = !on;
-    btn.disabled = on;
     clearInterval(stageTimer);
     if (on) {
       var i = 0;
       $("stage").textContent = stages[0];
       stageTimer = setInterval(function () { i = Math.min(i + 1, stages.length - 1); $("stage").textContent = stages[i]; }, 4500);
     }
+    drawQuota();
   }
 
   function showError(r) {
-    var extra = "";
-    if (r.limit === "guest") extra = ' <a class="btn sm" style="margin-left:6px" href="/signup">Create a free account</a>';
     errEl.className = "alert err";
-    errEl.innerHTML = W.esc(r.error) + extra;
+    errEl.textContent = r.error;
     errEl.hidden = false;
   }
 
+  essayEl.addEventListener("input", drawQuota);
+  taskEl.addEventListener("input", drawQuota);
+
   btn.addEventListener("click", function () {
+    if (busy) return; // a double click sends one request
     errEl.hidden = true;
     var n = words(essayEl.value);
     if (n < 120) { showError({ error: "Your essay has " + n + " words. Please write at least 120 (Task 2 needs 250+)." }); essayEl.focus(); return; }
     if (n > 500) { showError({ error: "Your essay has " + n + " words. The maximum is 500." }); return; }
-    if (!me.user && guestLeft() === 0) { openGate(); return; }
-    loading(true);
     var essay = essayEl.value, task = taskEl.value;
+    var saved = findRecent(essay, task);
+    if (saved) { showSaved(saved.result, essay, task, saved.at); return; }
+    if (me.remaining === 0) { drawQuota(); return; }
+    loading(true);
     W.api("/api/check", { essay: essay, task: task }).then(function (r) {
       loading(false);
-      if (!r._ok) { showError(r); if (r.limit === "guest") openGate(); return; }
-      if (!r.loggedIn) addGuestUse();
+      if (r.remaining != null || r.limit) setQuota(r._status === 429 && r.limit ? { remaining: 0, limit: r.limit, resetInSeconds: r.resetInSeconds } : r);
+      if (!r._ok) { if (r._status !== 429 || !r.limit) showError(r); else $("out").scrollIntoView({ behavior: smooth(), block: "center" }); return; }
+      if (!r.loggedIn) { addRecent(essay, task, r); drawRecent(); }
       render(r, essay, task);
-      showLeft(r.remaining, r.loggedIn);
-      if (!r.loggedIn) {
-        try { localStorage.setItem("writo-pending", JSON.stringify({ essay: essay, task: task, result: { overall: r.overall, criteria: r.criteria, mistakes: r.mistakes, rewrite: r.rewrite } })); } catch (e) {}
-      }
+      drawQuota();
     });
   });
+
+  function showSaved(result, essay, task, at) {
+    errEl.hidden = true;
+    render(Object.assign({}, result, { loggedIn: Boolean(me.user), saved: true, already: true, checkedAt: at }), essay, task);
+  }
 
   // Colour-coded marks, tooltips, praise and the feedback box live in assets/insights.js (window.WritoInsights).
   var X = window.WritoInsights;
 
-  // One-step sign-up under a guest's result: email, password, consent, history on by default.
+  // One-step sign-up under a guest's result: email, password, consent.
   function saveBox() {
-    var n = W.esc(String((me.limits && me.limits.user) || 5));
+    var n = W.esc(String(me.limits.user));
     return '<form class="save-box" id="save-form" novalidate>' +
-      '<h3>Save this result and get ' + n + ' free checks a day</h3>' +
+      '<h3>Keep your results and get ' + n + ' free checks a day</h3>' +
       '<div class="save-fields">' +
       '<div class="field"><label for="s-email">Email</label><input id="s-email" type="email" autocomplete="email" placeholder="you@gmail.com" required></div>' +
       '<div class="field"><label for="s-pass">Password <span class="hint">8+ characters</span></label><input id="s-pass" type="password" autocomplete="new-password" minlength="8" required></div>' +
       "</div>" +
-      '<label class="check-row"><input id="s-consent" type="checkbox" required><span>I agree to the <a href="/terms" target="_blank">Terms of use</a> and <a href="/privacy" target="_blank">Privacy policy</a>.</span></label>' +
-      '<div class="save-actions"><label class="check-row"><input id="s-history" type="checkbox" checked><span>Save my essays <span class="hint">(only you can see them)</span></span></label>' +
+      '<div class="save-actions"><label class="check-row"><input id="s-consent" type="checkbox" required><span>I agree to the <a href="/terms" target="_blank">Terms of use</a> and <a href="/privacy" target="_blank">Privacy policy</a>.</span></label>' +
       '<button class="btn" type="submit">Create free account</button></div>' +
       '<div id="save-err" role="alert" hidden></div>' +
-      '<p class="muted small" style="margin:12px 0 0">Already have an account? <a href="/login">Log in</a></p>' +
+      '<p class="muted small" style="margin:12px 0 0">Your checks on this device move to your account. Already have one? <a href="/login">Log in</a></p>' +
       "</form>";
   }
   function wireSaveBox() {
@@ -234,16 +334,14 @@
     form.addEventListener("submit", function (e) {
       e.preventDefault();
       W.signup({
-        email: $("s-email"), password: $("s-pass"), consent: $("s-consent"), history: $("s-history"),
+        email: $("s-email"), password: $("s-pass"), consent: $("s-consent"),
         button: form.querySelector("button[type=submit]"), error: $("save-err")
       }).then(function (res) {
         if (!res) return;
-        me.user = res.user || { email: $("s-email").value };
-        form.outerHTML = '<div class="alert ok saved-note">Account created. ' +
-          (res.saved ? 'This result is saved in <a href="/account">your history</a>.' : 'Your history is off, so this result was not stored. <a href="/account">Go to my account</a>.') + "</div>";
+        afterSignup(res, $("s-email").value);
+        form.outerHTML = '<div class="alert ok saved-note">Account created. ' + (res.saved ? res.saved + (res.saved === 1 ? " check is" : " checks are") + ' saved in <a href="/account">your history</a>.' : '<a href="/account">Go to my account</a>.') + "</div>";
         W.toast("Account created");
-        W.refreshAuth();
-        W.api("/api/me").then(function (m) { if (m._ok) showLeft(m.remaining, true); });
+        W.api("/api/me").then(function (m) { if (m._ok) setQuota(m); });
       });
     });
   }
@@ -252,19 +350,24 @@
     var crit = r.criteria.map(function (c) {
       return '<div class="crit-row"><b>' + W.esc(c.name) + '</b><span class="band">' + W.band(c) + '</span><div class="track"><i data-w="' + (c.high / 9 * 100).toFixed(1) + '%"></i></div><p>' + W.esc(c.comment) + "</p></div>";
     }).join("");
-    var marked = X.markedHTML(essay, r.mistakes);
-    var praise = X.praise(essay, r.mistakes);
-    var fixes = r.mistakes.length
-      ? '<ul class="fixes">' + r.mistakes.map(function (m) { return '<li class="t-' + X.classify(m) + '"><s>' + W.esc(m.quote) + "</s> → <b>" + W.esc(m.fix) + '</b><br><span class="muted small">' + W.esc(m.why) + "</span></li>"; }).join("") + "</ul>"
+    var mistakes = r.mistakes || [];
+    var marked = X.markedHTML(essay, mistakes);
+    var praise = X.praise(essay, mistakes);
+    var fixes = mistakes.length
+      ? '<ul class="fixes">' + mistakes.map(function (m) { return '<li class="t-' + X.classify(m) + '"><s>' + W.esc(m.quote) + "</s> → <b>" + W.esc(m.fix) + '</b><br><span class="muted small">' + W.esc(m.why) + "</span></li>"; }).join("") + "</ul>"
       : "";
+    var already = r.already ? '<p class="alert ok already">Already checked' + (r.checkedAt ? " on " + W.date(r.checkedAt) : "") + ". This is your saved result, no check was used.</p>" : "";
+    var actions = '<div class="next-actions"><button class="btn" type="button" data-new>Check a new essay</button>' +
+      '<button class="btn ghost" type="button" data-edit>Edit and re-check</button><span class="muted small" data-quota>' + W.esc(quotaText()) + "</span></div>";
     var html =
-      '<div class="panel"><div class="result-top"><div class="stamp animate" role="img" aria-label="Estimated overall band ' + W.band(r.overall) + '"><div><b>' + W.band(r.overall) + "</b><span>estimated band</span></div></div>" +
+      '<div class="panel">' + already + '<div class="result-top"><div class="stamp animate" role="img" aria-label="Estimated overall band ' + W.band(r.overall) + '"><div><b>' + W.band(r.overall) + "</b><span>estimated band</span></div></div>" +
       '<div><h2 style="margin-bottom:.3em">Your estimated band</h2><p class="muted" style="margin:0">A range, not an exact score. Here is how each criterion went.</p>' +
-      (!r.loggedIn ? '<p style="margin:10px 0 0"><a href="#save-form" class="small" style="font-weight:700">Save this result with a free account</a></p>' : "") + "</div></div>" +
+      (!r.loggedIn ? '<p style="margin:10px 0 0"><a href="#save-form" class="small" style="font-weight:700">Keep this result with a free account</a></p>' : "") + "</div></div>" +
       '<div class="crit">' + crit + "</div>" +
       (marked.count ? '<div class="marked"><h3>Your essay, marked</h3>' + marked.legend + '<p class="muted small mark-help">Hover over or tap a highlight to see why.</p><div class="paper">' + (task ? '<div class="task">Task: ' + W.esc(task) + "</div>" : "") + marked.html + "</div>" + fixes + "</div>" : "") +
       (r.rewrite ? '<div class="marked"><h3>Your weakest paragraph, one band higher</h3><div class="rewrite" id="rewrite-text">' + W.esc(r.rewrite) + '</div><p style="margin-top:10px"><button class="btn quiet sm" type="button" id="copy">Copy paragraph</button></p></div>' : "") +
       (praise ? '<p class="praise">' + praise + "</p>" : "") +
+      actions +
       (!r.loggedIn ? saveBox() : (r.saved ? '<p class="muted small" style="margin-top:16px">Saved to your <a href="/account">history</a>.</p>' : "")) +
       X.feedbackHTML() +
       "</div>";
@@ -273,6 +376,11 @@
     X.wireTips(resEl);
     X.wireFeedback({ band: W.band(r.overall) });
     if (!r.loggedIn) wireSaveBox();
+    resEl.querySelector("[data-new]").addEventListener("click", askNewEssay);
+    resEl.querySelector("[data-edit]").addEventListener("click", function () {
+      $("try-title").scrollIntoView({ behavior: smooth(), block: "start" });
+      essayEl.focus({ preventScroll: true });
+    });
     requestAnimationFrame(function () {
       resEl.querySelectorAll(".track i").forEach(function (i) { i.style.width = i.dataset.w; });
     });
@@ -280,6 +388,6 @@
     if (copy) copy.addEventListener("click", function () {
       navigator.clipboard.writeText(r.rewrite).then(function () { W.toast("Paragraph copied"); }, function () { W.toast("Select the text and copy it manually"); });
     });
-    resEl.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+    resEl.scrollIntoView({ behavior: smooth(), block: "start" });
   }
 })();

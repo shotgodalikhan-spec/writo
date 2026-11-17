@@ -27,12 +27,11 @@
 <div class="wrap auth">
   <div class="panel">
     <h1>Create your free account</h1>
-    <p class="muted">5 checks a day, your results saved, nothing to pay.</p>
+    <p class="muted">5 checks a day, all your results saved, nothing to pay. Checks you made on this device move to your account.</p>
     <form id="signup-form" novalidate>
       <div class="field"><label for="email">Email</label><input id="email" type="email" autocomplete="email" placeholder="you@gmail.com" required></div>
       <div class="field"><label for="password">Password <span class="hint">at least 8 characters</span></label><input id="password" type="password" autocomplete="new-password" minlength="8" required></div>
       <label class="check-row field"><input id="consent" type="checkbox" required><span>I agree to the <a href="/terms" target="_blank">Terms of use</a> and <a href="/privacy" target="_blank">Privacy policy</a>.</span></label>
-      <label class="check-row field"><input id="history" type="checkbox" checked><span>Save my essays and results <span class="hint">(only you can see them)</span></span></label>
       <div id="signup-err" role="alert" hidden></div>
       <button class="btn big" type="submit">Create free account</button>
     </form>

@@ -1,5 +1,7 @@
 // Writo essay checker: POST /api/check, diagnostics: GET /api/check
-import { json, readJson, sameOrigin, getUser, ipKey, utcDay, secondsToUtcMidnight, randomHex } from "../../lib/core.js";
+import { json, readJson, sameOrigin, getUser } from "../../lib/core.js";
+import { LIMITS, quota, spend, cookieHeaders } from "../../lib/quota.js";
+import { essayHash, findCheck, saveCheck } from "../../lib/checks.js";
 
 // Fastest reliable model first. Each model gets a time limit, then the next one is tried.
 const MODELS = [
@@ -9,8 +11,8 @@ const MODELS = [
 ];
 const MODEL_TIMEOUT_MS = 20000;
 
-// guest: per IP per day. The browser also caps a guest at GUEST_TOTAL checks in total (assets/checker.js).
-export const LIMITS = { guest: 3, user: 5, ipTotal: 15, global: 60 };
+// Daily limits live in lib/quota.js (LIMITS), shared with /api/me.
+export { LIMITS };
 
 const CRITERIA = [
   { key: "task_response", name: "Task Response" },
@@ -139,33 +141,16 @@ function withTimeout(promise, ms) {
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
-async function readCounts(db, day, keys) {
-  const counts = {};
-  for (const k of keys) counts[k] = 0;
-  if (!db) return counts;
-  const marks = keys.map(() => "?").join(",");
-  const rows = await db.prepare("SELECT key, count FROM usage WHERE day = ? AND key IN (" + marks + ")").bind(day, ...keys).all();
-  for (const r of rows.results || []) counts[r.key] = r.count;
-  return counts;
-}
-
-async function addUsage(db, day, keys) {
-  if (!db) return;
-  const stmts = keys.map((k) => db.prepare("INSERT INTO usage (day, key, count) VALUES (?, ?, 1) ON CONFLICT(day, key) DO UPDATE SET count = count + 1").bind(day, k));
-  stmts.push(db.prepare("DELETE FROM usage WHERE day < ?").bind(utcDay(-1)));
-  await db.batch(stmts);
-}
-
-function limitError(kind) {
-  const wait = secondsToUtcMidnight();
-  const hours = Math.max(1, Math.round(wait / 3600));
+function limitError(q) {
+  const hours = Math.max(1, Math.round(q.resetInSeconds / 3600));
   const msgs = {
-    guest: "You have used the free checks for your network today. Create a free account to get " + LIMITS.user + " checks every day, or come back in about " + hours + " h.",
+    guest: "You have used your " + LIMITS.guestDevice + " free checks for today. Create a free account to get " + LIMITS.user + " checks every day, or come back in about " + hours + " h.",
     user: "You have used all " + LIMITS.user + " free checks for today. New checks unlock in about " + hours + " h.",
     ip: "Too many checks from your network today. Please try again in about " + hours + " h.",
     global: "Writo is very busy today and has reached its free daily capacity. Please come back in about " + hours + " h.",
   };
-  return json({ error: msgs[kind], limit: kind, resetInSeconds: wait }, 429);
+  // "limit" names the rule that ran out; the page uses "guest" to offer a free account.
+  return json({ error: msgs[q.blockedBy], limit: q.blockedBy, remaining: 0, resetInSeconds: q.resetInSeconds }, 429, cookieHeaders(q));
 }
 
 export async function onRequestPost({ request, env }) {
@@ -186,19 +171,19 @@ export async function onRequestPost({ request, env }) {
 
   const db = env.DB || null;
   const user = await getUser(env, request);
-  const day = utcDay(0);
-  const ipK = "ip:" + (await ipKey(env, request));
-  const userK = user ? "user:" + user.id : null;
-  const keys = ["global", ipK].concat(userK ? [userK] : []);
-  const counts = await readCounts(db, day, keys);
+  const q = await quota(env, request, user);
+  const headers = cookieHeaders(q);
 
-  if (counts.global >= LIMITS.global) return limitError("global");
-  if (user) {
-    if (counts[userK] >= LIMITS.user) return limitError("user");
-    if (counts[ipK] >= LIMITS.ipTotal) return limitError("ip");
-  } else if (counts[ipK] >= LIMITS.guest) {
-    return limitError("guest");
+  // The same essay again (same text and task, extra spaces ignored): show the saved result, spend nothing.
+  // Guests repeat checks from the list on their device; the server stores no guest essays.
+  if (db && user) {
+    const same = await findCheck(db, user.id, await essayHash(essay, task));
+    if (same) {
+      return json({ ...JSON.parse(same.result), model: "saved", words, remaining: q.remaining, loggedIn: true, saved: true, already: true, checkedAt: same.created_at }, 200, headers);
+    }
   }
+
+  if (q.remaining <= 0) return limitError(q);
 
   const messages = buildMessages(task, essay);
   const failures = [];
@@ -208,22 +193,20 @@ export async function onRequestPost({ request, env }) {
       const out = await withTimeout(env.AI.run(model, { messages, max_tokens: 1800, temperature: 0.2 }), MODEL_TIMEOUT_MS);
       const parsed = parseModelJSON(extractText(out));
       if (parsed && parsed.rejected === true) {
-        return json({ error: "This does not look like an English Task 2 essay" + (parsed.reason ? " (" + String(parsed.reason).slice(0, 200).replace(/\.$/, "") + ")." : ".") + " Your free checks were not used.", rejected: true }, 422);
+        return json({ error: "This does not look like an English Task 2 essay" + (parsed.reason ? " (" + String(parsed.reason).slice(0, 200).replace(/\.$/, "") + ")." : ".") + " Your free checks were not used.", rejected: true }, 422, headers);
       }
       const result = parsed && normalize(parsed, essay);
       if (!result) { failures.push(model + ": unexpected answer format"); continue; }
 
-      await addUsage(db, day, keys);
-      const used = user ? counts[userK] + 1 : counts[ipK] + 1;
-      const allowed = user ? LIMITS.user : LIMITS.guest;
-      const response = { ...result, model, words, remaining: Math.max(0, allowed - used), loggedIn: Boolean(user), saved: false };
+      await spend(db, q.keys);
+      const response = { ...result, model, words, remaining: Math.max(0, q.remaining - 1), loggedIn: Boolean(user), saved: false };
 
-      if (db && user && user.save_history) {
-        await db.prepare("INSERT INTO checks (id, user_id, created_at, task, essay, result, overall_low, overall_high) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
-          .bind(randomHex(12), user.id, Date.now(), task, essay, JSON.stringify(result), result.overall.low, result.overall.high).run();
+      // Account owners: every check is kept, one record per essay.
+      if (db && user) {
+        await saveCheck(db, user.id, task, essay, result);
         response.saved = true;
       }
-      return json(response);
+      return json(response, 200, headers);
     } catch (err) {
       failures.push(model + ": " + String((err && err.message) || err).slice(0, 200));
     }
@@ -236,5 +219,5 @@ export async function onRequestPost({ request, env }) {
       ? "Writo has used its free AI capacity for today. It resets at 00:00 UTC (05:00 in Kazakhstan). Your free check was not used."
       : "The checker could not get an answer right now. Please try again in a minute. Your free check was not used.",
     detail: all,
-  }, limitHit ? 429 : 502);
+  }, limitHit ? 429 : 502, headers);
 }

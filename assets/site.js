@@ -101,8 +101,8 @@
   });
 
   // One-step sign-up used on the home page and on /signup.
-  // f = { email, password, consent, history (inputs), button, error (elements) }.
-  // Resolves to { user, saved } on success, or null after showing an error.
+  // f = { email, password, consent (inputs), button, error (elements) }.
+  // Resolves to { user, saved } on success (saved = how many device checks moved to the account), or null after an error.
   W.signup = function (f) {
     f.error.hidden = true;
     var email = f.email.value.trim(), pass = f.password.value;
@@ -114,24 +114,40 @@
     var b = f.button, label = b.textContent;
     b.disabled = true; b.textContent = "Creating your account…";
     var done = function (v) { b.disabled = false; b.textContent = label; return v; };
-    var keep = f.history ? f.history.checked : true;
     return W.api("/api/auth/signup", { email: email, password: pass, consent: true }).then(function (r) {
       if (!r._ok) {
         W.alert(f.error, "err", r.error);
         if (r._status === 409) f.error.innerHTML += ' <a href="/login">Log in</a>';
         return done(null);
       }
-      return W.api("/api/account/profile", { save_history: keep, onboarded: true }).then(function (p) {
-        var pending = null;
-        try { pending = JSON.parse(localStorage.getItem("writo-pending") || "null"); } catch (e) {}
-        var finish = function (saved) {
-          try { localStorage.removeItem("writo-pending"); } catch (e) {}
-          return done({ user: p.user || null, saved: saved });
-        };
-        if (!keep || !pending || !p._ok) return finish(false);
-        return W.api("/api/account/save-check", pending).then(function (s) { return finish(Boolean(s._ok && s.saved)); });
+      return W.api("/api/account/profile", { save_history: true, onboarded: true }).then(function (p) {
+        return W.importDeviceChecks().then(function (saved) { return done({ user: p.user || null, saved: saved }); });
       });
     });
+  };
+
+  // Moves the checks kept on this device (guest "My recent checks", and the older single "writo-pending")
+  // into the account, one request at a time. The server skips repeats. Checks that failed to save stay on the device.
+  W.importDeviceChecks = function () {
+    var list = [], left = [];
+    try { list = JSON.parse(localStorage.getItem("writo-recent") || "[]") || []; } catch (e) {}
+    try {
+      var old = JSON.parse(localStorage.getItem("writo-pending") || "null");
+      if (old && old.essay) list.push({ essay: old.essay, task: old.task, result: old.result, at: 0 });
+    } catch (e) {}
+    var saved = 0;
+    var step = function (i) {
+      if (i >= list.length) {
+        try { localStorage.removeItem("writo-pending"); if (left.length) localStorage.setItem("writo-recent", JSON.stringify(left)); else localStorage.removeItem("writo-recent"); } catch (e) {}
+        return Promise.resolve(saved);
+      }
+      var c = list[i];
+      return W.api("/api/account/save-check", { essay: c.essay, task: c.task || "", result: c.result, checked_at: c.at || undefined }).then(function (s) {
+        if (s._ok) saved++; else left.push(c);
+        return step(i + 1);
+      });
+    };
+    return step(0);
   };
 
   W.logout = function () {

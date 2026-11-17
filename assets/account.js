@@ -16,7 +16,7 @@
     $("signup-form").addEventListener("submit", function (e) {
       e.preventDefault();
       W.signup({
-        email: $("email"), password: $("password"), consent: $("consent"), history: $("history"),
+        email: $("email"), password: $("password"), consent: $("consent"),
         button: this.querySelector("button[type=submit]"), error: $("signup-err")
       }).then(function (res) { if (res) location.href = "/account"; });
     });
@@ -33,7 +33,8 @@
       W.api("/api/auth/login", { email: $("email").value, password: $("password").value }).then(function (r) {
         busy(b, false);
         if (!r._ok) { W.alert(err, "err", r.error); return; }
-        location.href = "/account";
+        // Checks made on this device before logging in move to the account too (repeats are skipped).
+        W.importDeviceChecks().then(function () { location.href = "/account"; });
       });
     });
   }
@@ -50,7 +51,6 @@
       $("exam").value = u.exam_date || "";
       $("plan").textContent = u.plan === "free" ? "Free plan: " + me.limits.user + " checks a day" : "Unlimited";
       $("since").textContent = "Member since " + W.date(u.created_at);
-      $("history-toggle").checked = u.save_history;
       showCountdown(u.exam_date);
       loadHistory(u);
     });
@@ -70,16 +70,14 @@
       document.querySelectorAll("[data-panel]").forEach(function (p) { p.hidden = p.dataset.panel !== name; });
     }
     tabs.forEach(function (t) { t.addEventListener("click", function () { showTab(t.dataset.tab); history.replaceState(null, "", "#" + t.dataset.tab); }); });
-    showTab(/^#(profile|privacy)$/.test(location.hash) ? location.hash.slice(1) : "progress");
+    function tabFromHash() { showTab(/^#(profile|privacy)$/.test(location.hash) ? location.hash.slice(1) : "progress"); }
+    tabFromHash();
+    window.addEventListener("hashchange", tabFromHash);
 
     function loadHistory(u) {
       var list = $("history-list");
-      if (!u.save_history) {
-        list.innerHTML = '<p class="muted">History is off, so your essays are not stored. You can turn it on in <a href="#privacy" data-goto="privacy">Privacy</a>.</p>';
-        list.querySelector("[data-goto]").addEventListener("click", function (e) { e.preventDefault(); showTab("privacy"); });
-        return;
-      }
       W.api("/api/account/checks").then(function (r) {
+        if (!r._ok) { list.innerHTML = '<p class="alert err">' + W.esc(r.error) + "</p>"; return; }
         var checks = (r.checks || []);
         if (!checks.length) { list.innerHTML = '<p class="muted">No checks yet. <a href="/#check">Check your first essay</a> and it will appear here.</p>'; return; }
         drawChart(checks.slice().reverse(), u.target_band);
@@ -127,16 +125,6 @@
       });
     });
 
-    $("history-toggle").addEventListener("change", function () {
-      var on = this.checked, box = this;
-      W.api("/api/account/profile", { save_history: on }).then(function (r) {
-        if (!r._ok) { box.checked = !on; W.toast(r.error); return; }
-        W.toast(on ? "History is on. New checks will be saved." : "History is off. New checks will not be saved.");
-        loadHistory({ save_history: on, target_band: $("target").value || null });
-        if (!on) $("chart").hidden = true;
-      });
-    });
-
     $("export").addEventListener("click", function () { location.href = "/api/account/export"; });
 
     $("delete-essays").addEventListener("click", function () {
@@ -157,7 +145,7 @@
       W.api("/api/account/delete", { password: $("delete-password").value }).then(function (r) {
         busy(b, false);
         if (!r._ok) { W.alert($("delete-msg"), "err", r.error); return; }
-        try { localStorage.removeItem("writo-pending"); } catch (x) {}
+        try { localStorage.removeItem("writo-pending"); localStorage.removeItem("writo-recent"); } catch (x) {}
         location.href = "/?deleted=1";
       });
     });

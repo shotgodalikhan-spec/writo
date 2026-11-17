@@ -255,7 +255,7 @@ mark.miss:focus-visible { outline: 2px solid var(--c); outline-offset: 1px; }
 .essay-box .count { position: absolute; right: 14px; bottom: 10px; font-size: .88rem; background: var(--sheet); padding: 2px 6px; border-radius: 6px; pointer-events: none; }
 .btn.big { width: 100%; padding: 18px 26px; font-size: 1.12rem; border-radius: var(--r-m); box-shadow: 0 6px 18px -8px color-mix(in srgb, var(--pen) 70%, transparent); }
 .fine { margin: 10px 0 0; font-size: .86rem; color: var(--ink-2); text-align: center; }
-.fine #left:not(:empty) { display: block; font-weight: 700; margin-top: 2px; }
+.fine .quota:not(:empty) { display: block; font-weight: 800; color: var(--ink); font-size: .95rem; margin-bottom: 2px; }
 .you-get { padding-top: 6px; }
 .you-get-title { font: 600 1.25rem/1.2 var(--serif); margin: 0 0 12px; }
 .you-get ul { list-style: none; padding: 0; margin: 0 0 18px; display: grid; gap: 14px; }
@@ -465,3 +465,25 @@ mark.miss:focus-visible { outline: 2px solid var(--c); outline-offset: 1px; }
 @media (prefers-reduced-motion: no-preference) { .fb-heart[aria-pressed="true"] svg { animation: beat .5s ease; } @keyframes beat { 40% { transform: scale(1.3); } } }
 @media (prefers-reduced-motion: reduce) { .fb-more, .fb-faces button, .fb-heart { transition: none; } }
 @media (max-width: 520px) { .fb-more { flex-direction: column; align-items: stretch; } }
+
+/* Out of checks today: the essay stays, the reason and the way forward are spelled out */
+.alert.out { background: var(--marker-soft); color: var(--ink); font-weight: 600; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.alert.out .btn { margin-left: auto; }
+#submit:disabled { cursor: not-allowed; filter: grayscale(.6); opacity: .65; transform: none; }
+
+/* Under a result: what to do next */
+.next-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 12px; margin-top: 26px; padding-top: 20px; border-top: 1px dashed var(--rule); }
+.next-actions [data-quota] { flex-basis: 100%; font-weight: 700; }
+@media (min-width: 640px) { .next-actions [data-quota] { flex-basis: auto; margin-left: auto; } }
+.already { margin: 0 0 18px; }
+
+/* Same-site confirm window (instead of the browser's confirm) */
+.gate.confirm { width: min(400px, calc(100vw - 32px)); }
+.confirm-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+.confirm-actions .btn { flex: 1 1 140px; }
+
+/* Guest checks kept on this device */
+.recent { margin-top: 34px; }
+.recent-title { font-size: 1.35rem; margin-bottom: 14px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+.recent-title .hint { font-family: var(--sans); }
+.recent .link-btn { padding: 0; font-size: inherit; }

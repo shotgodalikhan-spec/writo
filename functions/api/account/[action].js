@@ -1,5 +1,6 @@
 // Account API: /api/account/profile | checks | export | delete-essays | delete | save-check
-import { json, readJson, sameOrigin, getUser, publicUser, verifyPassword, clearSessionCookie, randomHex } from "../../../lib/core.js";
+import { json, readJson, sameOrigin, getUser, publicUser, verifyPassword, clearSessionCookie } from "../../../lib/core.js";
+import { saveCheck, dedupedChecks } from "../../../lib/checks.js";
 
 function bad(msg, status) { return json({ error: msg }, status || 400); }
 
@@ -8,8 +9,9 @@ export async function onRequestGet({ request, env, params }) {
   if (!user) return bad("Please log in.", 401);
 
   if (params.action === "checks") {
-    const rows = await env.DB.prepare("SELECT id, created_at, task, overall_low, overall_high, result, essay FROM checks WHERE user_id = ? ORDER BY created_at DESC LIMIT 100").bind(user.id).all();
-    return json({ checks: (rows.results || []).map((r) => ({ id: r.id, created_at: r.created_at, task: r.task, overall: { low: r.overall_low, high: r.overall_high }, result: JSON.parse(r.result), essay: r.essay })) });
+    // Repeats of the same essay are removed here: only the newest record of each essay stays.
+    const rows = (await dedupedChecks(env.DB, user.id)).slice(0, 100);
+    return json({ checks: rows.map((r) => ({ id: r.id, created_at: r.created_at, task: r.task, overall: { low: r.overall_low, high: r.overall_high }, result: JSON.parse(r.result), essay: r.essay })) });
   }
 
   if (params.action === "export") {
@@ -18,7 +20,7 @@ export async function onRequestGet({ request, env, params }) {
       exported_at: new Date().toISOString(),
       account: publicUser(user),
       checks: (rows.results || []).map((r) => ({ created_at: new Date(r.created_at).toISOString(), task: r.task, essay: r.essay, result: JSON.parse(r.result) })),
-      note: "Writo stores only your email, a password hash, your settings and (only if you enabled it) your essay history.",
+      note: "Writo stores only your email, a password hash, your settings and the essays you checked with your account (one copy of each).",
     };
     return new Response(JSON.stringify(data, null, 2), {
       headers: { "content-type": "application/json; charset=utf-8", "content-disposition": "attachment; filename=\"writo-my-data.json\"", "cache-control": "no-store" },
@@ -58,17 +60,16 @@ export async function onRequestPost({ request, env, params }) {
     return json({ ok: true, user: publicUser(fresh) });
   }
 
-  // Saves the essay a guest checked before signing up (only if history is enabled).
+  // Saves an essay checked on this device before sign-up. The same essay is stored only once.
   if (params.action === "save-check") {
-    if (!user.save_history) return json({ ok: true, saved: false });
     const essay = String(body.essay || "").slice(0, 6000);
     const task = String(body.task || "").slice(0, 1000);
     const r = body.result;
     if (!essay || !r || !r.overall || typeof r.overall.low !== "number") return bad("Nothing to save.");
     const result = { overall: r.overall, criteria: Array.isArray(r.criteria) ? r.criteria.slice(0, 4) : [], mistakes: Array.isArray(r.mistakes) ? r.mistakes.slice(0, 3) : [], rewrite: String(r.rewrite || "").slice(0, 2500) };
-    await db.prepare("INSERT INTO checks (id, user_id, created_at, task, essay, result, overall_low, overall_high) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
-      .bind(randomHex(12), user.id, Date.now(), task, essay, JSON.stringify(result), Number(r.overall.low), Number(r.overall.high)).run();
-    return json({ ok: true, saved: true });
+    result.overall = { low: Number(r.overall.low), high: Number(r.overall.high) };
+    const out = await saveCheck(db, user.id, task, essay, result, Number(body.checked_at));
+    return json({ ok: true, saved: true, updated: out.updated });
   }
 
   if (params.action === "delete-essays") {

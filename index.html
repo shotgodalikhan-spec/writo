@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Writo: free Writing Task 2 essay checker with band scores (beta)</title>
-<meta name="description" content="Paste your Writing Task 2 essay and get a band range for all four criteria, your mistakes highlighted in your text and a paragraph rewritten one band higher. 3 free checks, no sign-up.">
+<meta name="description" content="Paste your Writing Task 2 essay and get a band range for all four criteria, your mistakes highlighted in your text and a paragraph rewritten one band higher. 2 free checks a day, no sign-up.">
 <link rel="canonical" href="https://getwrito.pages.dev/">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://getwrito.pages.dev/">
 <meta property="og:title" content="Writo: check your Task 2 essay in about 15 seconds">
-<meta property="og:description" content="Band ranges for all four criteria, your key mistakes and a stronger version of your weakest paragraph. 3 free checks, no sign-up.">
+<meta property="og:description" content="Band ranges for all four criteria, your key mistakes and a stronger version of your weakest paragraph. 2 free checks a day, no sign-up.">
 <meta property="og:image" content="https://getwrito.pages.dev/og.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#FAF4EA">
@@ -57,7 +57,8 @@
           </div>
         </div>
         <button class="btn big" type="button" id="submit">Check my essay</button>
-        <p class="fine">3 free checks, no sign-up. Results in about 15 seconds. <span id="left"></span></p>
+        <p class="fine"><b class="quota" data-quota aria-live="polite"></b> Free, no sign-up: 2 checks a day, 5 with a free account. Results in about 15 seconds.</p>
+        <div id="out" class="alert out" role="status" hidden></div>
         <div id="error" role="alert" hidden></div>
         <div class="loading" id="loading" hidden>
           <svg class="pen-anim" viewBox="0 0 46 20" aria-hidden="true"><path d="M2 14c6-10 9 6 14-2s8 4 12-2 6 3 9 0 5-2 7-3"/></svg>
@@ -75,6 +76,7 @@
       </aside>
     </div>
     <div id="result" class="result" hidden aria-live="polite"></div>
+    <section id="recent" class="recent" hidden aria-label="My recent checks"></section>
   </div>
 </section>
 
@@ -135,8 +137,8 @@
     <h2 id="faq-title">Questions</h2>
     <details><summary>Is this an official score?</summary><p>No. Writo is an independent practice tool and is not connected to the official test organisations. The band ranges are AI estimates that help you see where to improve.</p></details>
     <details><summary>How accurate is it?</summary><p>Writo is in beta. We test it against essays with known examiner scores and show a range rather than a single number. Treat it as a strong second opinion, not a guarantee.</p></details>
-    <details><summary>What do I get for free?</summary><p>Three checks with no sign-up. After that, a free account gives you five checks every day and saves your results. Unlimited checks will be a paid plan later, with a 7-day refund.</p></details>
-    <details><summary>Do you store my essay?</summary><p>Not without an account. When you create one, your checked essays are saved to your history so you can track progress. You can switch this off at sign-up or any time later, and delete everything in one click. Read the <a href="/privacy">privacy policy</a>.</p></details>
+    <details><summary>What do I get for free?</summary><p>Two checks a day with no sign-up. A free account gives you five checks every day and keeps all your results. Checking the same essay again never uses a check. Unlimited checks will be a paid plan later, with a 7-day refund.</p></details>
+    <details><summary>Do you store my essay?</summary><p>Without an account, no: your recent checks stay only in your browser on this device. With an account, every essay you check is saved to your history (one copy of each essay) so you can track progress. You can delete all your essays or your whole account at any time in Privacy settings. Read the <a href="/privacy">privacy policy</a>.</p></details>
     <details><summary>Can it check Task 1 or General Training letters?</summary><p>Not yet. Writo focuses on Writing Task 2 essays so the feedback stays reliable.</p></details>
   </div>
 </section>

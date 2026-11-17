@@ -1,13 +1,15 @@
-import { json, getUser, publicUser, ipKey, utcDay } from "../../lib/core.js";
-import { LIMITS } from "./check.js";
+// Who is logged in and how many free checks are left today (same rules as /api/check, lib/quota.js).
+import { json, getUser, publicUser } from "../../lib/core.js";
+import { LIMITS, quota, cookieHeaders } from "../../lib/quota.js";
 
 export async function onRequestGet({ request, env }) {
   const user = await getUser(env, request);
-  let remaining = user ? LIMITS.user : LIMITS.guest;
-  if (env.DB) {
-    const key = user ? "user:" + user.id : "ip:" + (await ipKey(env, request));
-    const row = await env.DB.prepare("SELECT count FROM usage WHERE day = ? AND key = ?").bind(utcDay(0), key).first();
-    remaining = Math.max(0, remaining - (row ? row.count : 0));
-  }
-  return json({ user: publicUser(user), remaining, limits: { guest: LIMITS.guest, user: LIMITS.user } });
+  const q = await quota(env, request, user);
+  return json({
+    user: publicUser(user),
+    remaining: q.remaining,
+    limits: { guest: LIMITS.guestDevice, user: LIMITS.user },
+    limit: q.blockedBy,
+    resetInSeconds: q.resetInSeconds,
+  }, 200, cookieHeaders(q));
 }

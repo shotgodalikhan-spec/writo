@@ -2,5 +2,6 @@ User-agent: *
 Allow: /
 Disallow: /api/
 Disallow: /account
+Disallow: /inbox
 
 Sitemap: https://getwrito.pages.dev/sitemap.xml

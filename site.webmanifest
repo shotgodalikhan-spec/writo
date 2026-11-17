@@ -1,0 +1,20 @@
+{
+ "name": "Writo",
+ "short_name": "Writo",
+ "start_url": "/",
+ "display": "standalone",
+ "background_color": "#FAF4EA",
+ "theme_color": "#B9472F",
+ "icons": [
+  {
+   "src": "/apple-touch-icon.png",
+   "sizes": "180x180",
+   "type": "image/png"
+  },
+  {
+   "src": "/favicon.svg",
+   "sizes": "any",
+   "type": "image/svg+xml"
+  }
+ ]
+}

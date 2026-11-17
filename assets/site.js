@@ -89,17 +89,59 @@
   });
 
   // Session state
+  W.refreshAuth = function () {
+    document.getElementById("auth-slot").innerHTML = '<a class="btn sm" href="/account">My account</a>';
+    var m = head.querySelector(".m-login");
+    if (m) { m.href = "/account"; m.textContent = "My account"; }
+  };
   W.me = W.api("/api/me").then(function (r) {
     var data = r._ok ? r : { user: null, remaining: null };
-    if (data.user) {
-      document.getElementById("auth-slot").innerHTML = '<a class="btn sm" href="/account">My account</a>';
-    }
+    if (data.user) W.refreshAuth();
     return data;
   });
+
+  // One-step sign-up used on the home page and on /signup.
+  // f = { email, password, consent, history (inputs), button, error (elements) }.
+  // Resolves to { user, saved } on success, or null after showing an error.
+  W.signup = function (f) {
+    f.error.hidden = true;
+    var email = f.email.value.trim(), pass = f.password.value;
+    var problem = !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? [f.email, "Enter a valid email address."]
+      : pass.length < 8 ? [f.password, "Use a password of at least 8 characters."]
+      : !f.consent.checked ? [f.consent, "Tick the box to agree to the Terms of use and Privacy policy."]
+      : null;
+    if (problem) { W.alert(f.error, "err", problem[1]); problem[0].focus(); return Promise.resolve(null); }
+    var b = f.button, label = b.textContent;
+    b.disabled = true; b.textContent = "Creating your account…";
+    var done = function (v) { b.disabled = false; b.textContent = label; return v; };
+    var keep = f.history ? f.history.checked : true;
+    return W.api("/api/auth/signup", { email: email, password: pass, consent: true }).then(function (r) {
+      if (!r._ok) {
+        W.alert(f.error, "err", r.error);
+        if (r._status === 409) f.error.innerHTML += ' <a href="/login">Log in</a>';
+        return done(null);
+      }
+      return W.api("/api/account/profile", { save_history: keep, onboarded: true }).then(function (p) {
+        var pending = null;
+        try { pending = JSON.parse(localStorage.getItem("writo-pending") || "null"); } catch (e) {}
+        var finish = function (saved) {
+          try { localStorage.removeItem("writo-pending"); } catch (e) {}
+          return done({ user: p.user || null, saved: saved });
+        };
+        if (!keep || !pending || !p._ok) return finish(false);
+        return W.api("/api/account/save-check", pending).then(function (s) { return finish(Boolean(s._ok && s.saved)); });
+      });
+    });
+  };
 
   W.logout = function () {
     return W.api("/api/auth/logout", {}).then(function () { location.href = "/"; });
   };
+
+  if (/[?&]deleted=1/.test(location.search)) {
+    W.toast("Your account and data were deleted");
+    history.replaceState(null, "", location.pathname + location.hash);
+  }
 
   W.date = function (ms) {
     return new Date(ms).toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });

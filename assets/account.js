@@ -1,4 +1,4 @@
-// Sign-up with onboarding, log-in, and the account area.
+// One-step sign-up, log-in, and the account area.
 (function () {
   var W = window.Writo;
   var page = document.body.dataset.page;
@@ -10,61 +10,15 @@
     else if (button.dataset.label) button.textContent = button.dataset.label;
   }
 
-  /* ---------- Sign up and onboarding ---------- */
+  /* ---------- Sign up (one screen) ---------- */
   if (page === "signup") {
-    var steps = Array.prototype.slice.call(document.querySelectorAll("[data-step]"));
-    var profile = { target_band: null, exam_date: null, save_history: false };
-    function go(n) {
-      steps.forEach(function (s) { s.hidden = Number(s.dataset.step) !== n; });
-      document.querySelectorAll(".dots i").forEach(function (d, i) { d.classList.toggle("on", i <= n); });
-      var focus = steps[n].querySelector("input, button");
-      if (focus) focus.focus();
-    }
-    W.me.then(function (me) { if (me.user) { if (me.user.onboarded) location.href = "/account"; else go(1); } });
-
+    W.me.then(function (me) { if (me.user) location.href = "/account"; });
     $("signup-form").addEventListener("submit", function (e) {
       e.preventDefault();
-      var b = this.querySelector("button[type=submit]"), err = $("signup-err");
-      err.hidden = true;
-      var email = $("email").value.trim(), pass = $("password").value;
-      var problem = !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? ["email", "Enter a valid email address."]
-        : pass.length < 8 ? ["password", "Use a password of at least 8 characters."]
-        : !$("consent").checked ? ["consent", "Tick the box to agree to the Terms of use and Privacy policy."]
-        : null;
-      if (problem) { W.alert(err, "err", problem[1]); $(problem[0]).focus(); return; }
-      busy(b, true, "Creating your account…");
-      W.api("/api/auth/signup", { email: $("email").value, password: $("password").value, consent: $("consent").checked }).then(function (r) {
-        busy(b, false);
-        if (!r._ok) { W.alert(err, "err", r.error); if (r._status === 409) err.innerHTML += ' <a href="/login">Log in</a>'; return; }
-        go(1);
-      });
-    });
-
-    document.querySelectorAll(".bands button").forEach(function (b) {
-      b.addEventListener("click", function () {
-        document.querySelectorAll(".bands button").forEach(function (x) { x.setAttribute("aria-pressed", "false"); });
-        b.setAttribute("aria-pressed", "true");
-        profile.target_band = Number(b.dataset.band);
-      });
-    });
-    document.querySelectorAll("[data-next]").forEach(function (b) {
-      b.addEventListener("click", function () {
-        if (b.dataset.next === "3" && $("exam").value) profile.exam_date = $("exam").value;
-        go(Number(b.dataset.next));
-      });
-    });
-    $("finish").addEventListener("click", function () {
-      var b = this;
-      profile.save_history = $("history").checked;
-      profile.onboarded = true;
-      busy(b, true, "Saving…");
-      W.api("/api/account/profile", profile).then(function (r) {
-        if (!r._ok) { busy(b, false); W.alert($("finish-err"), "err", r.error); return; }
-        var pending = null;
-        try { pending = JSON.parse(localStorage.getItem("writo-pending") || "null"); } catch (e) {}
-        var next = function () { try { localStorage.removeItem("writo-pending"); } catch (e) {} location.href = "/account"; };
-        if (pending && profile.save_history) W.api("/api/account/save-check", pending).then(next); else next();
-      });
+      W.signup({
+        email: $("email"), password: $("password"), consent: $("consent"), history: $("history"),
+        button: this.querySelector("button[type=submit]"), error: $("signup-err")
+      }).then(function (res) { if (res) location.href = "/account"; });
     });
   }
 
@@ -79,7 +33,7 @@
       W.api("/api/auth/login", { email: $("email").value, password: $("password").value }).then(function (r) {
         busy(b, false);
         if (!r._ok) { W.alert(err, "err", r.error); return; }
-        location.href = r.onboarded ? "/account" : "/signup";
+        location.href = "/account";
       });
     });
   }
@@ -92,30 +46,36 @@
       $("account").hidden = false;
       $("hello").textContent = u.email;
       $("left-today").textContent = me.remaining + " of " + me.limits.user + " free checks left today";
-      $("target").value = u.target_band || "";
+      $("target").value = u.target_band == null ? "" : String(Number(u.target_band) % 1 ? u.target_band : Number(u.target_band));
       $("exam").value = u.exam_date || "";
       $("plan").textContent = u.plan === "free" ? "Free plan: " + me.limits.user + " checks a day" : "Unlimited";
       $("since").textContent = "Member since " + W.date(u.created_at);
       $("history-toggle").checked = u.save_history;
-      if (u.exam_date) {
-        var days = Math.ceil((new Date(u.exam_date) - new Date()) / 86400000);
-        if (days >= 0) $("countdown").textContent = days === 0 ? "Your exam is today. Good luck!" : days + (days === 1 ? " day" : " days") + " until your exam";
-      }
+      showCountdown(u.exam_date);
       loadHistory(u);
     });
 
+    function showCountdown(d) {
+      var text = "";
+      if (d) {
+        var days = Math.ceil((new Date(d) - new Date()) / 86400000);
+        if (days >= 0) text = days === 0 ? "Your exam is today. Good luck!" : days + (days === 1 ? " day" : " days") + " until your exam";
+      }
+      $("countdown").textContent = text;
+    }
+
     var tabs = document.querySelectorAll(".tabs button");
     function showTab(name) {
-      tabs.forEach(function (t) { t.setAttribute("aria-selected", String(t.dataset.tab === name)); });
+      tabs.forEach(function (t) { t.setAttribute("aria-selected", String(t.dataset.tab === name)); t.tabIndex = t.dataset.tab === name ? 0 : -1; });
       document.querySelectorAll("[data-panel]").forEach(function (p) { p.hidden = p.dataset.panel !== name; });
     }
     tabs.forEach(function (t) { t.addEventListener("click", function () { showTab(t.dataset.tab); history.replaceState(null, "", "#" + t.dataset.tab); }); });
-    if (/^#(profile|privacy)$/.test(location.hash)) showTab(location.hash.slice(1));
+    showTab(/^#(profile|privacy)$/.test(location.hash) ? location.hash.slice(1) : "progress");
 
     function loadHistory(u) {
       var list = $("history-list");
       if (!u.save_history) {
-        list.innerHTML = '<p class="muted">History is off, so your essays are not stored. You can turn it on in <a href="#privacy" data-goto="privacy">Privacy settings</a>.</p>';
+        list.innerHTML = '<p class="muted">History is off, so your essays are not stored. You can turn it on in <a href="#privacy" data-goto="privacy">Privacy</a>.</p>';
         list.querySelector("[data-goto]").addEventListener("click", function (e) { e.preventDefault(); showTab("privacy"); });
         return;
       }
@@ -124,7 +84,7 @@
         if (!checks.length) { list.innerHTML = '<p class="muted">No checks yet. <a href="/#check">Check your first essay</a> and it will appear here.</p>'; return; }
         drawChart(checks.slice().reverse(), u.target_band);
         list.innerHTML = '<ul class="history">' + checks.map(function (c, i) {
-          return '<li><div><b>' + W.esc(c.task ? c.task.slice(0, 90) + (c.task.length > 90 ? "…" : "") : "Essay without a task") + '</b></div><span class="band">' + W.band(c.overall) + '</span><div class="muted small">' + W.date(c.created_at) + " · " + c.essay.split(/\s+/).length + ' words · <a href="#" data-open="' + i + '">Open</a></div></li>';
+          return '<li><div><b>' + W.esc(c.task ? c.task.slice(0, 90) + (c.task.length > 90 ? "…" : "") : "Essay without a task") + '</b></div><span class="band">' + W.band(c.overall) + '</span><div class="muted small">' + W.date(c.created_at) + " · " + c.essay.trim().split(/\s+/).length + ' words · <a href="#" data-open="' + i + '">Open in checker</a></div></li>';
         }).join("") + "</ul>";
         list.querySelectorAll("[data-open]").forEach(function (a) {
           a.addEventListener("click", function (e) {
@@ -162,6 +122,7 @@
         busy(b, false);
         if (!r._ok) { W.alert($("profile-msg"), "err", r.error); return; }
         $("profile-msg").hidden = true;
+        showCountdown($("exam").value);
         W.toast("Profile saved");
       });
     });
@@ -171,6 +132,8 @@
       W.api("/api/account/profile", { save_history: on }).then(function (r) {
         if (!r._ok) { box.checked = !on; W.toast(r.error); return; }
         W.toast(on ? "History is on. New checks will be saved." : "History is off. New checks will not be saved.");
+        loadHistory({ save_history: on, target_band: $("target").value || null });
+        if (!on) $("chart").hidden = true;
       });
     });
 

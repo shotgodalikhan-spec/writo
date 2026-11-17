@@ -4,12 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Create a free account | Writo</title>
-<meta name="description" content="Create a free Writo account: 5 essay checks a day and an optional history of your progress.">
+<meta name="description" content="Create a free Writo account: 5 essay checks a day and your results saved.">
 <link rel="canonical" href="https://getwrito.pages.dev/signup">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://getwrito.pages.dev/signup">
 <meta property="og:title" content="Create a free account | Writo">
-<meta property="og:description" content="Create a free Writo account: 5 essay checks a day and an optional history of your progress.">
+<meta property="og:description" content="Create a free Writo account: 5 essay checks a day and your results saved.">
 <meta property="og:image" content="https://getwrito.pages.dev/og.png">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#FAF4EA">
@@ -26,42 +26,17 @@
 <main id="main">
 <div class="wrap auth">
   <div class="panel">
-    <div class="dots" aria-hidden="true"><i class="on"></i><i></i><i></i><i></i></div>
-    <div data-step="0">
-      <h1 style="font-size:2rem">Create your free account</h1>
-      <p class="muted">5 checks a day, progress tracking, and nothing to pay.</p>
-      <form id="signup-form" novalidate>
-        <div class="field"><label for="email">Email</label><input id="email" type="email" autocomplete="email" required></div>
-        <div class="field"><label for="password">Password <span class="hint">at least 8 characters</span></label><input id="password" type="password" autocomplete="new-password" minlength="8" required></div>
-        <label class="check-row field"><input id="consent" type="checkbox" required><span>I agree to the <a href="/terms" target="_blank">Terms of use</a> and <a href="/privacy" target="_blank">Privacy policy</a>.</span></label>
-        <div id="signup-err" role="alert" hidden></div>
-        <button class="btn" type="submit" style="width:100%">Create account</button>
-      </form>
-      <p class="muted small" style="margin-top:18px">Already have an account? <a href="/login">Log in</a></p>
-    </div>
-    <div data-step="1" hidden>
-      <h1 style="font-size:1.9rem">What band are you aiming for?</h1>
-      <p class="muted">We will show it on your progress chart.</p>
-      <div class="bands field" role="group" aria-label="Target band">
-        <button type="button" data-band="5.5" aria-pressed="false">5.5</button><button type="button" data-band="6" aria-pressed="false">6.0</button><button type="button" data-band="6.5" aria-pressed="false">6.5</button><button type="button" data-band="7" aria-pressed="false">7.0</button><button type="button" data-band="7.5" aria-pressed="false">7.5</button><button type="button" data-band="8" aria-pressed="false">8.0</button><button type="button" data-band="8.5" aria-pressed="false">8.5+</button>
-      </div>
-      <button class="btn" type="button" data-next="2">Continue</button>
-      <button class="btn ghost" type="button" data-next="2">Skip</button>
-    </div>
-    <div data-step="2" hidden>
-      <h1 style="font-size:1.9rem">When is your exam?</h1>
-      <p class="muted">We will count down the days. You can change it later.</p>
-      <div class="field"><label for="exam">Exam date</label><input id="exam" type="date"></div>
-      <button class="btn" type="button" data-next="3">Continue</button>
-      <button class="btn ghost" type="button" data-next="3">I don't know yet</button>
-    </div>
-    <div data-step="3" hidden>
-      <h1 style="font-size:1.9rem">Keep a history of your essays?</h1>
-      <p class="muted">If you turn this on, we store your essays and results so you can track progress. It stays off unless you choose it, and you can delete everything at any time.</p>
-      <div class="setting"><div><b>Save my essays and results</b><p class="muted small">Only you can see them.</p></div><label class="switch"><input id="history" type="checkbox" aria-label="Save my essays and results"><span></span></label></div>
-      <div id="finish-err" role="alert" hidden></div>
-      <button class="btn" type="button" id="finish" style="width:100%;margin-top:14px">Finish and go to my account</button>
-    </div>
+    <h1>Create your free account</h1>
+    <p class="muted">5 checks a day, your results saved, nothing to pay.</p>
+    <form id="signup-form" novalidate>
+      <div class="field"><label for="email">Email</label><input id="email" type="email" autocomplete="email" placeholder="you@gmail.com" required></div>
+      <div class="field"><label for="password">Password <span class="hint">at least 8 characters</span></label><input id="password" type="password" autocomplete="new-password" minlength="8" required></div>
+      <label class="check-row field"><input id="consent" type="checkbox" required><span>I agree to the <a href="/terms" target="_blank">Terms of use</a> and <a href="/privacy" target="_blank">Privacy policy</a>.</span></label>
+      <label class="check-row field"><input id="history" type="checkbox" checked><span>Save my essays and results <span class="hint">(only you can see them)</span></span></label>
+      <div id="signup-err" role="alert" hidden></div>
+      <button class="btn big" type="submit">Create free account</button>
+    </form>
+    <p class="muted small" style="margin:18px 0 0">Already have an account? <a href="/login">Log in</a></p>
   </div>
 </div>
 </main>

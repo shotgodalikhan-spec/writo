@@ -113,13 +113,12 @@
     if (n == null) return;
     if (!loggedIn) {
       var g = Math.min(n, guestLeft());
-      $("left").textContent = guestLeft() === 0
-        ? "You have used your " + GUEST_TOTAL + " free checks."
-        : g === 0 ? "No free checks left on your network today."
-        : g + " of " + GUEST_TOTAL + " free checks left. No sign-up needed.";
+      $("left").textContent = guestLeft() === 0 || g === 0
+        ? "Free checks without an account are used up for today."
+        : guestUsed() === 0 ? "" : g + (g === 1 ? " free check" : " free checks") + " left without an account.";
       return;
     }
-    $("left").textContent = n === 0 ? "No free checks left today." : n + (n === 1 ? " free check" : " free checks") + " left today.";
+    $("left").textContent = n === 0 ? "No free checks left today." : n + (n === 1 ? " check" : " checks") + " left today.";
   }
   var me = { user: null };
   W.me.then(function (m) { me = m; showLeft(m.remaining, Boolean(m.user)); W._user = m.user; });
@@ -201,6 +200,42 @@
     return out + W.esc(essay.slice(pos));
   }
 
+  // One-step sign-up under a guest's result: email, password, consent, history on by default.
+  function saveBox() {
+    var n = W.esc(String((me.limits && me.limits.user) || 5));
+    return '<form class="save-box" id="save-form" novalidate>' +
+      '<h3>Save this result and get ' + n + ' free checks a day</h3>' +
+      '<div class="save-fields">' +
+      '<div class="field"><label for="s-email">Email</label><input id="s-email" type="email" autocomplete="email" placeholder="you@gmail.com" required></div>' +
+      '<div class="field"><label for="s-pass">Password <span class="hint">8+ characters</span></label><input id="s-pass" type="password" autocomplete="new-password" minlength="8" required></div>' +
+      "</div>" +
+      '<label class="check-row"><input id="s-consent" type="checkbox" required><span>I agree to the <a href="/terms" target="_blank">Terms of use</a> and <a href="/privacy" target="_blank">Privacy policy</a>.</span></label>' +
+      '<div class="save-actions"><label class="check-row"><input id="s-history" type="checkbox" checked><span>Save my essays <span class="hint">(only you can see them)</span></span></label>' +
+      '<button class="btn" type="submit">Create free account</button></div>' +
+      '<div id="save-err" role="alert" hidden></div>' +
+      '<p class="muted small" style="margin:12px 0 0">Already have an account? <a href="/login">Log in</a></p>' +
+      "</form>";
+  }
+  function wireSaveBox() {
+    var form = $("save-form");
+    if (!form) return;
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      W.signup({
+        email: $("s-email"), password: $("s-pass"), consent: $("s-consent"), history: $("s-history"),
+        button: form.querySelector("button[type=submit]"), error: $("save-err")
+      }).then(function (res) {
+        if (!res) return;
+        me.user = res.user || { email: $("s-email").value };
+        form.outerHTML = '<div class="alert ok saved-note">Account created. ' +
+          (res.saved ? 'This result is saved in <a href="/account">your history</a>.' : 'Your history is off, so this result was not stored. <a href="/account">Go to my account</a>.') + "</div>";
+        W.toast("Account created");
+        W.refreshAuth();
+        W.api("/api/me").then(function (m) { if (m._ok) showLeft(m.remaining, true); });
+      });
+    });
+  }
+
   function render(r, essay, task) {
     var crit = r.criteria.map(function (c) {
       return '<div class="crit-row"><b>' + W.esc(c.name) + '</b><span class="band">' + W.band(c) + '</span><div class="track"><i data-w="' + (c.high / 9 * 100).toFixed(1) + '%"></i></div><p>' + W.esc(c.comment) + "</p></div>";
@@ -210,14 +245,16 @@
       : "";
     var html =
       '<div class="panel"><div class="result-top"><div class="stamp animate" role="img" aria-label="Estimated overall band ' + W.band(r.overall) + '"><div><b>' + W.band(r.overall) + "</b><span>estimated band</span></div></div>" +
-      '<div><h2 style="margin-bottom:.3em">Your estimated band</h2><p class="muted" style="margin:0">A range, not an exact score. Here is how each criterion went.</p></div></div>' +
+      '<div><h2 style="margin-bottom:.3em">Your estimated band</h2><p class="muted" style="margin:0">A range, not an exact score. Here is how each criterion went.</p>' +
+      (!r.loggedIn ? '<p style="margin:10px 0 0"><a href="#save-form" class="small" style="font-weight:700">Save this result with a free account</a></p>' : "") + "</div></div>" +
       '<div class="crit">' + crit + "</div>" +
       (r.mistakes.length ? '<div class="marked"><h3>Your essay, marked</h3><div class="paper">' + (task ? '<div class="task">Task: ' + W.esc(task) + "</div>" : "") + highlight(essay, r.mistakes) + "</div>" + fixes + "</div>" : "") +
       (r.rewrite ? '<div class="marked"><h3>Your weakest paragraph, one band higher</h3><div class="rewrite" id="rewrite-text">' + W.esc(r.rewrite) + '</div><p style="margin-top:10px"><button class="btn quiet sm" type="button" id="copy">Copy paragraph</button></p></div>' : "") +
-      (!r.loggedIn ? '<div class="upsell"><span><b>Want to track your progress?</b> A free account gives you 5 checks a day and an optional history.</span><a class="btn sm" href="/signup">Create a free account</a></div>' : (r.saved ? '<p class="muted small" style="margin-top:16px">Saved to your <a href="/account">history</a>.</p>' : "")) +
+      (!r.loggedIn ? saveBox() : (r.saved ? '<p class="muted small" style="margin-top:16px">Saved to your <a href="/account">history</a>.</p>' : "")) +
       "</div>";
     resEl.innerHTML = html;
     resEl.hidden = false;
+    if (!r.loggedIn) wireSaveBox();
     requestAnimationFrame(function () {
       resEl.querySelectorAll(".track i").forEach(function (i) { i.style.width = i.dataset.w; });
     });

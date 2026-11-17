@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My account | Writo</title>
+<meta name="description" content="Your Writo account, progress and privacy settings.">
+<link rel="canonical" href="https://getwrito.pages.dev/account">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://getwrito.pages.dev/account">
+<meta property="og:title" content="My account | Writo">
+<meta property="og:description" content="Your Writo account, progress and privacy settings.">
+<meta property="og:image" content="https://getwrito.pages.dev/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#FAF4EA">
+<meta name="robots" content="noindex">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<link rel="stylesheet" href="/assets/style.css">
+<script>(function(){try{var t=localStorage.getItem("writo-theme")||"system";var d=t==="dark"||(t==="system"&&matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.setAttribute("data-theme",d?"dark":"light")}catch(e){}})()</script>
+</head>
+<body data-page="account">
+<main id="main">
+<div class="wrap" id="account" hidden style="padding-top:40px;padding-bottom:40px">
+  <div style="display:flex;flex-wrap:wrap;justify-content:space-between;align-items:end;gap:16px;margin-bottom:22px">
+    <div><h1 style="font-size:2.2rem;margin-bottom:.2em">My account</h1><p class="muted" style="margin:0"><span id="hello"></span>. <span id="countdown"></span></p></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap"><span class="left" id="left-today" style="align-self:center"></span><a class="btn" href="/#check">Check an essay</a></div>
+  </div>
+  <div class="tabs" role="tablist">
+    <button role="tab" data-tab="progress" aria-selected="true">Progress</button>
+    <button role="tab" data-tab="profile" aria-selected="false">Profile and plan</button>
+    <button role="tab" data-tab="privacy" aria-selected="false">Privacy settings</button>
+  </div>
+  <div data-panel="progress">
+    <svg class="chart" id="chart" hidden role="img" aria-label="Your estimated band over time"></svg>
+    <div id="history-list"><p class="muted">Loading…</p></div>
+  </div>
+  <div data-panel="profile" hidden style="max-width:520px">
+    <form id="profile-form">
+      <div class="field"><label for="target">Target band</label><select id="target"><option value="">Not set</option><option>5.5</option><option value="6">6.0</option><option>6.5</option><option value="7">7.0</option><option>7.5</option><option value="8">8.0</option><option>8.5</option><option value="9">9.0</option></select></div>
+      <div class="field"><label for="exam">Exam date</label><input id="exam" type="date"></div>
+      <div id="profile-msg" role="alert" hidden></div>
+      <button class="btn" type="submit">Save changes</button>
+    </form>
+    <div class="setting" style="margin-top:28px"><div><b>Your plan</b><p class="muted small" id="plan"></p></div><a class="btn ghost sm" href="/pricing">See plans</a></div>
+    <div class="setting"><div><b>Session</b><p class="muted small" id="since"></p></div><button class="btn ghost sm" type="button" id="logout">Log out</button></div>
+  </div>
+  <div data-panel="privacy" hidden style="max-width:640px">
+    <p class="muted">We keep as little as possible: your email, a scrambled (hashed) password, your settings, and your essays only if you turn history on. Essays are sent to an AI model running on Cloudflare to be checked. We never sell your data. Details are in the <a href="/privacy">privacy policy</a>.</p>
+    <div class="setting"><div><b>Save history of checks</b><p class="muted small">Stores your essays and results so you can see progress. Off by default.</p></div><label class="switch"><input id="history-toggle" type="checkbox" aria-label="Save history of checks"><span></span></label></div>
+    <div class="setting"><div><b>Download my data</b><p class="muted small">Everything we store about you, as a JSON file.</p></div><button class="btn ghost sm" type="button" id="export">Download</button></div>
+    <div class="setting"><div><b>Delete all my essays</b><p class="muted small">Removes every saved essay and result. Your account stays.</p></div><button class="btn ghost sm" type="button" id="delete-essays">Delete essays</button></div>
+    <div class="setting" style="display:block"><b>Delete my account</b><p class="muted small">Permanently deletes your account, history and settings. This cannot be undone.</p>
+      <form id="delete-form" class="inline-form" style="margin-top:10px"><label for="delete-password" class="hint" style="position:absolute;left:-999px">Password</label><input id="delete-password" type="password" placeholder="Enter your password to confirm" autocomplete="current-password" required><button class="btn danger sm" type="submit">Delete account</button></form>
+      <div id="delete-msg" role="alert" hidden></div>
+    </div>
+  </div>
+</div>
+</main>
+<script src="/assets/site.js"></script>
+<script src="/assets/account.js"></script>
+</body>
+</html>

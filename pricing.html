@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pricing | Writo</title>
+<meta name="description" content="Writo is free to try: 1 check a day without an account, 5 with a free account. Unlimited plan coming soon with a 7-day refund.">
+<link rel="canonical" href="https://getwrito.pages.dev/pricing">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://getwrito.pages.dev/pricing">
+<meta property="og:title" content="Pricing | Writo">
+<meta property="og:description" content="Writo is free to try: 1 check a day without an account, 5 with a free account. Unlimited plan coming soon with a 7-day refund.">
+<meta property="og:image" content="https://getwrito.pages.dev/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#FAF4EA">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<link rel="stylesheet" href="/assets/style.css">
+<script>(function(){try{var t=localStorage.getItem("writo-theme")||"system";var d=t==="dark"||(t==="system"&&matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.setAttribute("data-theme",d?"dark":"light")}catch(e){}})()</script>
+</head>
+<body data-page="pricing">
+<main id="main">
+<div class="wrap" style="padding-top:56px;padding-bottom:40px">
+  <div class="section-head"><h1>Simple pricing</h1><p class="lead">Start free. Pay only if Writo actually helps you, and get your money back within 7 days if it doesn't.</p></div>
+  <div class="plans">
+    <div class="plan">
+      <h2 style="font-size:1.5rem">Free</h2>
+      <div class="price">$0</div>
+      <ul>
+        <li>1 check a day without an account</li>
+        <li>5 checks a day with a free account</li>
+        <li>Band range for all four criteria</li>
+        <li>Mistakes highlighted in your essay</li>
+        <li>Weakest paragraph rewritten one band higher</li>
+        <li>Optional progress history</li>
+      </ul>
+      <a class="btn ghost" href="/signup">Create a free account</a>
+    </div>
+    <div class="plan featured">
+      <h2 style="font-size:1.5rem">Unlimited</h2>
+      <div class="price">$7.99 <small>/ month</small></div>
+      <ul>
+        <li>Unlimited essay checks</li>
+        <li>Everything in Free</li>
+        <li>Email reminder before every renewal</li>
+        <li>Cancel in one click, any time</li>
+        <li>Full refund within 7 days of payment</li>
+      </ul>
+      <p class="muted small"><b>Coming soon.</b> Paid plans are not available yet, so nobody is charged today. Leave your email and we will tell you when it opens.</p>
+      <form class="inline-form" id="waitlist-form" novalidate><label for="wl-email" style="position:absolute;left:-999px">Email</label><input id="wl-email" type="email" placeholder="you@example.com" autocomplete="email" required><button class="btn" type="submit">Notify me</button></form>
+      <div id="wl-msg" role="status" hidden></div>
+    </div>
+  </div>
+  <p class="muted small" style="margin-top:24px">Prices in US dollars. Taxes may apply depending on your country and will be shown before payment. Payments will be processed by our payment partner acting as the merchant of record. See the <a href="/terms">Terms</a> and <a href="/refund">Refund policy</a>.</p>
+</div>
+<script>
+document.getElementById("waitlist-form").addEventListener("submit", function (e) {
+  e.preventDefault();
+  var b = this.querySelector("button"), msg = document.getElementById("wl-msg");
+  b.disabled = true;
+  Writo.api("/api/waitlist", { email: document.getElementById("wl-email").value }).then(function (r) {
+    b.disabled = false;
+    if (!r._ok) { Writo.alert(msg, "err", r.error); return; }
+    Writo.alert(msg, "ok", "You are on the list. We will email you once, when Unlimited opens.");
+  });
+});
+</script>
+</main>
+<script src="/assets/site.js"></script>
+</body>
+</html>

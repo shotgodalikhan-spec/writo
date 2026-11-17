@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Log in | Writo</title>
+<meta name="description" content="Log in to your Writo account.">
+<link rel="canonical" href="https://getwrito.pages.dev/login">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://getwrito.pages.dev/login">
+<meta property="og:title" content="Log in | Writo">
+<meta property="og:description" content="Log in to your Writo account.">
+<meta property="og:image" content="https://getwrito.pages.dev/og.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#FAF4EA">
+<meta name="robots" content="noindex">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<link rel="manifest" href="/site.webmanifest">
+<link rel="stylesheet" href="/assets/style.css">
+<script>(function(){try{var t=localStorage.getItem("writo-theme")||"system";var d=t==="dark"||(t==="system"&&matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.setAttribute("data-theme",d?"dark":"light")}catch(e){}})()</script>
+</head>
+<body data-page="login">
+<main id="main">
+<div class="wrap auth">
+  <div class="panel">
+    <h1 style="font-size:2rem">Welcome back</h1>
+    <form id="login-form" novalidate>
+      <div class="field"><label for="email">Email</label><input id="email" type="email" autocomplete="email" required></div>
+      <div class="field"><label for="password">Password</label><input id="password" type="password" autocomplete="current-password" required></div>
+      <div id="login-err" role="alert" hidden></div>
+      <button class="btn" type="submit" style="width:100%">Log in</button>
+    </form>
+    <p class="muted small" style="margin-top:18px">New here? <a href="/signup">Create a free account</a></p>
+    <p class="muted small">Forgot your password? Password reset by email is coming soon. Until then, write to us from the <a href="/contact">contact page</a> using your account email.</p>
+  </div>
+</div>
+</main>
+<script src="/assets/site.js"></script>
+<script src="/assets/account.js"></script>
+</body>
+</html>

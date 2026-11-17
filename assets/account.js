@@ -26,6 +26,12 @@
       e.preventDefault();
       var b = this.querySelector("button[type=submit]"), err = $("signup-err");
       err.hidden = true;
+      var email = $("email").value.trim(), pass = $("password").value;
+      var problem = !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? ["email", "Enter a valid email address."]
+        : pass.length < 8 ? ["password", "Use a password of at least 8 characters."]
+        : !$("consent").checked ? ["consent", "Tick the box to agree to the Terms of use and Privacy policy."]
+        : null;
+      if (problem) { W.alert(err, "err", problem[1]); $(problem[0]).focus(); return; }
       busy(b, true, "Creating your account…");
       W.api("/api/auth/signup", { email: $("email").value, password: $("password").value, consent: $("consent").checked }).then(function (r) {
         busy(b, false);

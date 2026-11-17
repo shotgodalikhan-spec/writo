@@ -358,7 +358,7 @@
       : "";
     var already = r.already ? '<p class="alert ok already">Already checked' + (r.checkedAt ? " on " + W.date(r.checkedAt) : "") + ". This is your saved result, no check was used.</p>" : "";
     var actions = '<div class="next-actions"><button class="btn" type="button" data-new>Check a new essay</button>' +
-      '<button class="btn ghost" type="button" data-edit>Edit and re-check</button><span class="muted small" data-quota>' + W.esc(quotaText()) + "</span></div>";
+      '<button class="btn ghost" type="button" data-edit>Edit and re-check</button><button class="link-btn" type="button" data-ideas="idea">Suggest an idea</button><span class="muted small" data-quota>' + W.esc(quotaText()) + "</span></div>";
     var html =
       '<div class="panel">' + already + '<div class="result-top"><div class="stamp animate" role="img" aria-label="Estimated overall band ' + W.band(r.overall) + '"><div><b>' + W.band(r.overall) + "</b><span>estimated band</span></div></div>" +
       '<div><h2 style="margin-bottom:.3em">Your estimated band</h2><p class="muted" style="margin:0">A range, not an exact score. Here is how each criterion went.</p>' +

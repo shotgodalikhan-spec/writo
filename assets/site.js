@@ -73,7 +73,7 @@
   foot.innerHTML =
     '<div class="wrap"><div class="foot-grid">' +
     '<div><a class="brand" href="/">' + LOGO + 'Writo</a><p style="margin-top:12px;max-width:26em">Honest, fast feedback on Writing Task 2 essays. No hidden charges, no lost text.</p></div>' +
-    '<nav aria-label="Product"><strong>Product</strong><a href="/#check">Check an essay</a><a href="/pricing">Pricing</a><a href="/guides/">Guides</a><a href="/account">My account</a></nav>' +
+    '<nav aria-label="Product"><strong>Product</strong><a href="/#check">Check an essay</a><a href="/pricing">Pricing</a><a href="/guides/">Guides</a><a href="/account">My account</a><button type="button" class="link-btn foot-link" data-ideas="idea">Suggest an idea</button><button type="button" class="link-btn foot-link" data-ideas="problem">Report a problem</button></nav>' +
     '<nav aria-label="Legal"><strong>Legal</strong><a href="/terms">Terms of use</a><a href="/privacy">Privacy policy</a><a href="/refund">Refund policy</a><a href="/disclaimer">Disclaimer</a><a href="/contact">Contact</a></nav>' +
     "</div>" +
     '<p class="disclaimer">Writo is not affiliated with IELTS, the British Council, IDP or Cambridge University Press &amp; Assessment. Scores are AI estimates for practice, not official results. &copy; ' + new Date().getFullYear() + " Writo</p></div>";
@@ -149,6 +149,103 @@
     };
     return step(0);
   };
+
+  /* ---------- Ideas & problems (on every page) ---------- */
+  // One button, two kinds: "idea" (what to add) and "problem" (what to fix). Stored by /api/feedback,
+  // read by the owner at /inbox, where they are grouped into themes automatically.
+  var ideas;
+  W.openIdeas = function (kind) {
+    if (!ideas) {
+      ideas = document.createElement("dialog");
+      ideas.className = "gate ideas";
+      ideas.setAttribute("aria-labelledby", "ideas-title");
+      ideas.innerHTML =
+        '<form method="dialog" class="gate-close"><button class="icon-btn" aria-label="Close">×</button></form>' +
+        '<h2 id="ideas-title">Help us improve Writo</h2>' +
+        '<form id="ideas-form" novalidate>' +
+        '<div class="seg" role="radiogroup" aria-label="Type of message">' +
+        '<label><input type="radio" name="ideas-kind" value="idea" checked><span>Suggest an idea</span></label>' +
+        '<label><input type="radio" name="ideas-kind" value="problem"><span>Report a problem</span></label></div>' +
+        '<div class="field"><label for="ideas-text" id="ideas-q">What would you like us to add?</label>' +
+        '<textarea id="ideas-text" rows="4" maxlength="1500" required></textarea></div>' +
+        '<p class="muted small">Anonymous. Please do not include your email or other personal details.</p>' +
+        '<div id="ideas-err" role="alert" hidden></div>' +
+        '<button class="btn big" type="submit">Send</button></form>' +
+        '<div id="ideas-done" hidden><p class="fb-thanks">Thank you! We read every message and use it to decide what to build next.</p><button class="btn ghost" type="button" id="ideas-more">Send another</button></div>';
+      document.body.appendChild(ideas);
+      ideas.addEventListener("click", function (e) { if (e.target === ideas) ideas.close(); });
+      var Q = {
+        idea: ["What would you like us to add?", "For example: Task 1 checks, more examples of better sentences, a vocabulary list…"],
+        problem: ["What should we fix or work on?", "What went wrong or felt annoying? On which page, and on phone or computer?"]
+      };
+      var form = ideas.querySelector("#ideas-form"), text = ideas.querySelector("#ideas-text");
+      var setKind = function (k) {
+        ideas.querySelector('input[value="' + k + '"]').checked = true;
+        ideas.querySelector("#ideas-q").textContent = Q[k][0];
+        text.placeholder = Q[k][1];
+      };
+      ideas._setKind = setKind;
+      ideas.querySelectorAll('input[name="ideas-kind"]').forEach(function (r) { r.addEventListener("change", function () { setKind(r.value); }); });
+      ideas.querySelector("#ideas-more").addEventListener("click", function () {
+        ideas.querySelector("#ideas-done").hidden = true; form.hidden = false; text.value = ""; text.focus();
+      });
+      form.addEventListener("submit", function (e) {
+        e.preventDefault();
+        var err = ideas.querySelector("#ideas-err"), msg = text.value.trim();
+        err.hidden = true;
+        if (msg.length < 3) { W.alert(err, "err", "Please write a few words."); text.focus(); return; }
+        var b = form.querySelector("button[type=submit]");
+        b.disabled = true; b.textContent = "Sending…";
+        var id = Array.prototype.map.call(crypto.getRandomValues(new Uint8Array(8)), function (x) { return ("0" + x.toString(16)).slice(-2); }).join("");
+        var kindNow = ideas.querySelector('input[name="ideas-kind"]:checked').value;
+        W.api("/api/feedback", { id: id, kind: kindNow, text: msg, page: location.pathname }).then(function (r) {
+          b.disabled = false; b.textContent = "Send";
+          if (!r._ok) { W.alert(err, "err", r.error); return; }
+          text.value = "";
+          form.hidden = true;
+          ideas.querySelector("#ideas-done").hidden = false;
+        });
+      });
+    }
+    ideas.querySelector("#ideas-done").hidden = true;
+    ideas.querySelector("#ideas-form").hidden = false;
+    ideas._setKind(kind === "problem" ? "problem" : "idea");
+    if (typeof ideas.showModal === "function") { if (!ideas.open) ideas.showModal(); }
+    else ideas.setAttribute("open", "");
+    ideas.querySelector("#ideas-text").focus();
+  };
+  document.addEventListener("click", function (e) {
+    var t = e.target.closest && e.target.closest("[data-ideas]");
+    if (t) { e.preventDefault(); W.openIdeas(t.getAttribute("data-ideas")); }
+  });
+  var pill = document.createElement("button");
+  pill.type = "button";
+  pill.className = "ideas-pill";
+  pill.setAttribute("data-ideas", "idea");
+  pill.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/></svg><span>Ideas &amp; problems</span>';
+  document.body.appendChild(pill);
+
+  /* ---------- Owner: new messages badge ---------- */
+  // Only in the owner's browser (set when /inbox opens successfully). Others never call the admin API.
+  W.me.then(function (m) {
+    var owner = false;
+    try { owner = localStorage.getItem("writo-owner") === "1"; } catch (e) {}
+    if (!m.user || !owner || document.body.dataset.page === "inbox") return;
+    var seen = 0;
+    try { seen = Number(localStorage.getItem("writo-inbox-seen")) || 0; } catch (e) {}
+    W.api("/api/admin/feedback?since=" + seen).then(function (r) {
+      if (!r._ok || !r.newSince) return;
+      var n = r.newSince.ratings + r.newSince.ideas + r.newSince.problems;
+      if (!n) return;
+      var a = document.createElement("a");
+      a.className = "inbox-badge";
+      a.href = "/inbox";
+      a.textContent = "Inbox: " + n + " new";
+      a.title = r.newSince.ideas + " ideas, " + r.newSince.problems + " problems, " + r.newSince.ratings + " ratings";
+      var slot = document.getElementById("auth-slot");
+      slot.parentNode.insertBefore(a, slot);
+    });
+  });
 
   W.logout = function () {
     return W.api("/api/auth/logout", {}).then(function () { location.href = "/"; });

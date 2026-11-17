@@ -487,3 +487,34 @@ mark.miss:focus-visible { outline: 2px solid var(--c); outline-offset: 1px; }
 .recent-title { font-size: 1.35rem; margin-bottom: 14px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
 .recent-title .hint { font-family: var(--sans); }
 .recent .link-btn { padding: 0; font-size: inherit; }
+
+/* Ideas & problems: footer links, a small pill in the corner, and its window */
+.site-foot .foot-link { justify-self: start; padding: 0; color: var(--ink-2); font: inherit; text-decoration: none; }
+.site-foot .foot-link:hover { color: var(--ink); text-decoration: underline; }
+.ideas-pill { position: fixed; right: 18px; bottom: 18px; z-index: 30; display: inline-flex; align-items: center; gap: 7px; border: 1.5px solid var(--rule); background: var(--sheet); color: var(--ink); border-radius: 99px; padding: 9px 15px 9px 12px; font: 700 .88rem/1 var(--sans); box-shadow: var(--shadow); cursor: pointer; transition: transform .15s, border-color .15s; }
+.ideas-pill svg { color: var(--marker); stroke: var(--pen); }
+.ideas-pill:hover { border-color: var(--pen); transform: translateY(-1px); }
+@media (max-width: 760px) { .ideas-pill { display: none; } }
+.seg { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 4px; background: var(--sheet-2); border-radius: var(--r-m); margin-bottom: 16px; }
+.seg label { position: relative; }
+.seg input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.seg span { display: block; padding: 9px 14px; border-radius: var(--r-s); font-weight: 700; font-size: .92rem; color: var(--ink-2); }
+.seg input:checked + span { background: var(--sheet); color: var(--ink); box-shadow: var(--shadow); }
+.seg input:focus-visible + span { outline: 3px solid var(--marker); outline-offset: 1px; }
+.ideas textarea { min-height: 110px; }
+.ideas .fb-thanks { margin-bottom: 16px; }
+.inbox-badge { background: var(--marker); color: var(--ink); font: 800 .82rem/1 var(--sans); padding: 8px 11px; border-radius: 99px; text-decoration: none; white-space: nowrap; }
+
+/* Owner inbox */
+.inbox-sum { margin: 10px 0 24px; }
+.inbox-new { background: var(--marker-soft); padding: 10px 14px; border-radius: var(--r-m); font-weight: 600; }
+.inbox-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; }
+.inbox-cols section { background: var(--sheet); border: 1px solid var(--rule); border-radius: var(--r-m); padding: 14px 16px; }
+.inbox-cols h2 { font-size: 1.15rem; margin: 0 0 .4em; }
+.inbox-cols ol { margin: 6px 0 0; padding-left: 20px; }
+.inbox-text { margin: 6px 0 0; white-space: pre-wrap; }
+.inbox-list li.k-idea { border-left: 3px solid var(--olive); }
+.inbox-list li.k-problem { border-left: 3px solid var(--pen); }
+.tags { margin: 8px 0 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.tags span { font-size: .78rem; font-weight: 700; background: var(--sheet-2); color: var(--ink-2); border-radius: 99px; padding: 3px 9px; }
+.new-tag { font-size: .72rem; font-weight: 800; background: var(--marker); color: var(--ink); border-radius: 99px; padding: 2px 7px; vertical-align: 2px; }

@@ -10,7 +10,7 @@ const MODELS = [
 const MODEL_TIMEOUT_MS = 20000;
 
 // guest: per IP per day. The browser also caps a guest at GUEST_TOTAL checks in total (assets/checker.js).
-export const LIMITS = { guest: 5, user: 5, ipTotal: 15, global: 60 };
+export const LIMITS = { guest: 3, user: 5, ipTotal: 15, global: 60 };
 
 const CRITERIA = [
   { key: "task_response", name: "Task Response" },

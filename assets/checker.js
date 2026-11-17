@@ -100,7 +100,8 @@
 
   // Guests get GUEST_TOTAL checks in this browser, no sign-up needed.
   // The server has its own daily limit per network; this counter decides when to suggest an account.
-  var GUEST_TOTAL = 5, GUEST_KEY = "writo-guest-used";
+  var GUEST_TOTAL = 3, GUEST_KEY = "writo-guest-used";
+  var userDaily = function () { return (me.limits && me.limits.user) || 5; };
   function guestUsed() {
     try { return Math.max(0, parseInt(localStorage.getItem(GUEST_KEY), 10) || 0); } catch (e) { return 0; }
   }
@@ -114,8 +115,8 @@
     if (!loggedIn) {
       var g = Math.min(n, guestLeft());
       $("left").textContent = guestLeft() === 0 || g === 0
-        ? "Free checks without an account are used up for today."
-        : guestUsed() === 0 ? "" : g + (g === 1 ? " free check" : " free checks") + " left without an account.";
+        ? "Your free checks are used up. Sign up free to get " + userDaily() + " more every day."
+        : guestUsed() === 0 ? "" : g + " of " + GUEST_TOTAL + " free checks left. Sign up to get " + userDaily() + " more every day.";
       return;
     }
     $("left").textContent = n === 0 ? "No free checks left today." : n + (n === 1 ? " check" : " checks") + " left today.";
@@ -123,9 +124,11 @@
   var me = { user: null };
   W.me.then(function (m) { me = m; showLeft(m.remaining, Boolean(m.user)); W._user = m.user; });
 
-  // Soft invitation shown when a guest has used all free checks. Never blocks the rest of the site.
+  // Shown when a guest has used all free checks: sign up right here and get more checks.
+  // After sign-up the essay that is still in the box is checked automatically.
   var gate;
   function openGate() {
+    var n = W.esc(String(userDaily()));
     if (!gate) {
       gate = document.createElement("dialog");
       gate.className = "gate";
@@ -133,14 +136,36 @@
       gate.innerHTML =
         '<form method="dialog" class="gate-close"><button class="icon-btn" aria-label="Close">×</button></form>' +
         '<h2 id="gate-title">You have used your ' + GUEST_TOTAL + ' free checks</h2>' +
-        '<p>Create a free account to keep going: ' + W.esc(String((me.limits && me.limits.user) || 5)) + ' checks every day, and your results saved if you want them. Your essay stays where it is.</p>' +
-        '<div class="gate-actions"><a class="btn" href="/signup">Create a free account</a><a class="btn ghost" href="/login">Log in</a></div>' +
-        '<p class="muted small">Need more? <a href="/pricing">See the Pro plan</a>.</p>';
+        '<p><b class="gift">Sign up free and get ' + n + ' more checks, every day.</b> Your essay stays where it is and is checked right after.</p>' +
+        '<form id="gate-form" novalidate>' +
+        '<div class="field"><label for="g-email">Email</label><input id="g-email" type="email" autocomplete="email" placeholder="you@gmail.com" required></div>' +
+        '<div class="field"><label for="g-pass">Password <span class="hint">8+ characters</span></label><input id="g-pass" type="password" autocomplete="new-password" minlength="8" required></div>' +
+        '<label class="check-row field"><input id="g-consent" type="checkbox" required><span>I agree to the <a href="/terms" target="_blank">Terms of use</a> and <a href="/privacy" target="_blank">Privacy policy</a>.</span></label>' +
+        '<label class="check-row field"><input id="g-history" type="checkbox" checked><span>Save my essays <span class="hint">(only you can see them)</span></span></label>' +
+        '<div id="gate-err" role="alert" hidden></div>' +
+        '<button class="btn big" type="submit">Get ' + n + ' free checks</button>' +
+        "</form>" +
+        '<p class="muted small" style="margin:14px 0 0">Already have an account? <a href="/login">Log in</a></p>';
       document.body.appendChild(gate);
       gate.addEventListener("click", function (e) { if (e.target === gate) gate.close(); });
+      $("gate-form").addEventListener("submit", function (e) {
+        e.preventDefault();
+        W.signup({
+          email: $("g-email"), password: $("g-pass"), consent: $("g-consent"), history: $("g-history"),
+          button: this.querySelector("button[type=submit]"), error: $("gate-err")
+        }).then(function (res) {
+          if (!res) return;
+          me.user = res.user || { email: $("g-email").value };
+          gate.close();
+          W.refreshAuth();
+          W.toast("Account created: " + userDaily() + " free checks a day");
+          errEl.hidden = true;
+          btn.click();
+        });
+      });
     }
     if (typeof gate.showModal === "function") { if (!gate.open) gate.showModal(); }
-    else showError({ error: "You have used your " + GUEST_TOTAL + " free checks.", limit: "guest" });
+    else showError({ error: "You have used your " + GUEST_TOTAL + " free checks. Sign up free to get " + userDaily() + " more every day.", limit: "guest" });
   }
 
   var stages = ["Reading your essay", "Scoring the four criteria", "Finding your key mistakes", "Rewriting your weakest paragraph"];

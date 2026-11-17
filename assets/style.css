@@ -413,3 +413,5 @@ mark.miss { background: var(--marker-soft); color: inherit; border-bottom: 2px s
 @media (max-width: 420px) { .tabs { gap: 0; } .tabs button { padding: 12px 9px; font-size: .9rem; }
   .wrap { padding: 0 16px; } .site-head .wrap { gap: 8px; } .site-head .btn.sm { padding: 8px 10px; font-size: .88rem; } .brand { font-size: 1.25rem; gap: 8px; } .brand svg { width: 28px; height: 28px; } }
 .countdown:not(:empty)::before { content: "· "; }
+.gate .gift { color: var(--olive); }
+.gate .field { margin-bottom: 14px; }

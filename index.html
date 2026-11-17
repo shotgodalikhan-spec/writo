@@ -3,106 +3,167 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Writo: honest feedback on your IELTS Writing Task 2 essay</title>
-<meta name="description" content="Paste your essay, get a band range for each criterion and your three biggest mistakes. Free beta.">
+<title>Writo — Writing Task 2 essay checker (beta)</title>
+<meta name="description" content="Free beta checker for Writing Task 2 essays: band ranges for four criteria, key mistakes and a rewritten paragraph.">
 <style>
-:root{--bg:#f2f5f3;--ink:#16202a;--mute:#55636e;--line:#cfd9d4;--accent:#1f6f5c;--pen:#b4372f;--card:#ffffff}
-@media (prefers-color-scheme:dark){:root{--bg:#10171c;--ink:#e8eef0;--mute:#9aa8b1;--line:#27343c;--accent:#58c4a5;--pen:#ff8a80;--card:#182229}}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.55 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-main{max-width:720px;margin:0 auto;padding:32px 20px 64px}
-h1,h2,.range{font-family:Georgia,"Times New Roman",serif;font-weight:700}
-h1{font-size:clamp(30px,6vw,44px);line-height:1.1;margin:0 0 12px}
-.lead{color:var(--mute);margin:0 0 28px;max-width:56ch}
-label{display:block;font-weight:600;margin:18px 0 6px}
-textarea,input{width:100%;font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:6px;padding:12px}
-textarea{min-height:280px;line-height:1.6;resize:vertical}
-:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
-.row{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:10px;flex-wrap:wrap}
-#count{color:var(--mute);font-size:15px}
-button{font:inherit;font-weight:700;background:var(--accent);color:#fff;border:0;border-radius:6px;padding:12px 22px;cursor:pointer}
-@media (prefers-color-scheme:dark){button{color:#0b1410}}
-button:disabled{opacity:.55;cursor:wait}
-#err{color:var(--pen);margin-top:12px;min-height:1.5em}
-#result{margin-top:28px}
-.overall{border-left:6px solid var(--accent);padding:4px 0 4px 18px;margin-bottom:24px}
-.range{font-size:56px;line-height:1}
-.crit{border-top:1px solid var(--line);padding:14px 0}
-.crit b{display:flex;justify-content:space-between;gap:12px}
-.crit p,.fix p{margin:4px 0 0;color:var(--mute)}
-.quote{border-left:4px solid var(--pen);padding-left:12px;margin:0 0 6px;font-style:italic}
-.fix{margin:16px 0}
-.note{font-size:14px;color:var(--mute);margin-top:32px;border-top:1px solid var(--line);padding-top:16px}
+  :root {
+    --bg: #f7f7f5; --card: #ffffff; --text: #1d1d1b; --muted: #6b6b66;
+    --line: #e3e2dd; --accent: #2f6fdb; --accent-text: #ffffff;
+    --bad: #b3261e; --bad-bg: #fdecea; --good-bg: #eef4ff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #141413; --card: #1e1e1c; --text: #ececea; --muted: #a3a29c;
+      --line: #33332f; --accent: #6b9cf0; --accent-text: #0b1220;
+      --bad: #ffb4ab; --bad-bg: #3a1c1a; --good-bg: #1b2538;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 32px 18px 60px; }
+  h1 { font-size: 28px; margin: 0 0 4px; }
+  .beta { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 99px;
+          background: var(--good-bg); color: var(--accent); vertical-align: middle; }
+  .sub { color: var(--muted); margin: 0 0 24px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px; margin-bottom: 16px; }
+  label { display: block; font-weight: 600; margin-bottom: 6px; }
+  .hint { font-weight: 400; color: var(--muted); font-size: 14px; }
+  textarea { width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 12px;
+             background: var(--bg); color: var(--text); font: inherit; resize: vertical; }
+  textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  #task { min-height: 70px; margin-bottom: 14px; }
+  #essay { min-height: 300px; }
+  .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 10px; flex-wrap: wrap; }
+  #count { color: var(--muted); font-size: 14px; }
+  button { background: var(--accent); color: var(--accent-text); border: 0; border-radius: 8px;
+           padding: 11px 22px; font: inherit; font-weight: 600; cursor: pointer; }
+  button:disabled { opacity: .55; cursor: wait; }
+  .error { background: var(--bad-bg); color: var(--bad); border-radius: 8px; padding: 12px 14px; margin-top: 14px; }
+  .error small { display: block; margin-top: 6px; opacity: .85; word-break: break-word; }
+  .overall { display: flex; align-items: baseline; gap: 12px; }
+  .overall .num { font-size: 40px; font-weight: 700; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; margin-top: 12px; }
+  .crit { border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+  .crit b { display: block; }
+  .crit .band { font-size: 22px; font-weight: 700; color: var(--accent); }
+  .crit p { margin: 4px 0 0; color: var(--muted); font-size: 14px; }
+  .mistake { border-left: 3px solid var(--accent); padding: 4px 0 4px 12px; margin: 10px 0; }
+  .mistake s { color: var(--bad); }
+  .mistake .why { color: var(--muted); font-size: 14px; }
+  .rewrite { white-space: pre-wrap; background: var(--bg); border-radius: 8px; padding: 12px; }
+  h2 { font-size: 18px; margin: 0 0 8px; }
+  footer { color: var(--muted); font-size: 13px; margin-top: 28px; }
+  [hidden] { display: none !important; }
 </style>
 </head>
 <body>
 <main>
-<h1>Find out what is holding your IELTS essay back</h1>
-<p class="lead">Paste a Task 2 essay. You get a band range for each of the four criteria, your biggest mistakes quoted from your own text, and three next steps. Free while in beta. Your essay is not saved.</p>
+  <h1>Writo <span class="beta">BETA</span></h1>
+  <p class="sub">Paste your Writing Task 2 essay and get estimated band ranges for the four criteria, key mistakes and one improved paragraph.</p>
 
-<label for="q">Essay question (recommended)</label>
-<input id="q" maxlength="600" placeholder="Some people think that… To what extent do you agree?">
+  <div class="card">
+    <label for="task">Task question <span class="hint">(optional, but improves Task Response)</span></label>
+    <textarea id="task" placeholder="e.g. Some people think that university education should be free. To what extent do you agree or disagree?"></textarea>
 
-<label for="essay">Your essay</label>
-<textarea id="essay" placeholder="Paste your essay here (120 to 500 words)"></textarea>
-<div class="row"><span id="count">0 words</span><button id="go" type="button">Check my essay</button></div>
-<div id="err" role="alert"></div>
-<div id="result" aria-live="polite"></div>
+    <label for="essay">Essay</label>
+    <textarea id="essay" placeholder="Paste your essay here (120–500 words)"></textarea>
 
-<p class="note">Writo is in beta and is not affiliated with IELTS, the British Council, IDP or Cambridge. Results are an unofficial estimate from an AI, shown as ranges because AI scoring is never exact. Your text is sent to Cloudflare Workers AI to produce the result and is not stored by Writo.</p>
+    <div class="row">
+      <span id="count">0 words</span>
+      <button id="btn" type="button">Check essay</button>
+    </div>
+    <div id="error" class="error" hidden></div>
+  </div>
+
+  <div id="result" hidden>
+    <div class="card">
+      <h2>Estimated overall band</h2>
+      <div class="overall"><span class="num" id="overall"></span><span class="hint">range, not an exact score</span></div>
+      <div class="grid" id="criteria"></div>
+    </div>
+    <div class="card" id="mistakesCard">
+      <h2>Key mistakes</h2>
+      <div id="mistakes"></div>
+    </div>
+    <div class="card" id="rewriteCard">
+      <h2>Improved paragraph</h2>
+      <div class="rewrite" id="rewrite"></div>
+    </div>
+  </div>
+
+  <footer>
+    Writo is not affiliated with IELTS, the British Council, IDP or Cambridge University Press &amp; Assessment.
+    Scores are AI estimates for practice only, not official results. Your essay is sent to an AI model to be checked and is not stored by Writo.
+  </footer>
 </main>
+
 <script>
-const $ = (id) => document.getElementById(id);
-const NAMES = {task_response:"Task response",coherence_cohesion:"Coherence and cohesion",lexical_resource:"Vocabulary",grammar:"Grammar"};
-const fmt = (r) => r.low === r.high ? r.low.toFixed(1) : r.low.toFixed(1) + "–" + r.high.toFixed(1);
-const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
-const words = () => $("essay").value.trim().split(/\s+/).filter(Boolean).length;
+  const $ = (id) => document.getElementById(id);
+  const essayEl = $("essay"), taskEl = $("task"), btn = $("btn"), errEl = $("error");
 
-$("essay").addEventListener("input", () => { $("count").textContent = words() + " words"; });
-
-$("go").addEventListener("click", async () => {
-  $("err").textContent = ""; $("result").replaceChildren();
-  $("go").disabled = true; $("go").textContent = "Checking…";
-  try {
-    const res = await fetch("/api/check", {
-      method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({essay: $("essay").value, question: $("q").value})
-    });
-    const d = await res.json();
-    if (!res.ok) throw new Error(d.error || "Something went wrong.");
-    render(d);
-  } catch (e) {
-    $("err").textContent = e.message;
-  } finally {
-    $("go").disabled = false; $("go").textContent = "Check my essay";
+  function words(t) { return (t.trim().match(/\S+/g) || []).length; }
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   }
-});
+  function band(r) { return r.low.toFixed(1) + "–" + r.high.toFixed(1); }
 
-function render(d) {
-  const out = $("result");
-  const o = el("div", "overall");
-  o.append(el("div", "", "Estimated overall band"), el("div", "range", fmt(d.overall)));
-  out.append(o);
-  for (const k in NAMES) {
-    const c = el("div", "crit");
-    const b = el("b"); b.append(el("span", "", NAMES[k]), el("span", "", fmt(d.criteria[k])));
-    c.append(b, el("p", "", d.criteria[k].comment));
-    out.append(c);
+  essayEl.addEventListener("input", () => {
+    const n = words(essayEl.value);
+    $("count").textContent = n + (n === 1 ? " word" : " words");
+  });
+
+  function showError(msg, detail) {
+    errEl.innerHTML = esc(msg) + (detail ? "<small>Details: " + esc(detail) + "</small>" : "");
+    errEl.hidden = false;
   }
-  if (d.mistakes.length) {
-    out.append(el("h2", "", "Your biggest mistakes"));
-    for (const m of d.mistakes) {
-      const f = el("div", "fix");
-      f.append(el("p", "quote", m.quote), el("p", "", m.problem), el("p", "", "Better: " + m.fix));
-      out.append(f);
+
+  btn.addEventListener("click", async () => {
+    errEl.hidden = true;
+    $("result").hidden = true;
+
+    const n = words(essayEl.value);
+    if (n < 120) return showError("Essay is too short: " + n + " words. Minimum is 120.");
+    if (n > 500) return showError("Essay is too long: " + n + " words. Maximum is 500.");
+
+    btn.disabled = true;
+    btn.textContent = "Checking… (up to 30 s)";
+    try {
+      const res = await fetch("/api/check", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ essay: essayEl.value, task: taskEl.value }),
+      });
+      let data;
+      try { data = await res.json(); }
+      catch { throw { msg: "Server returned an unexpected answer (HTTP " + res.status + ").", detail: "Check that functions/api/check.js is uploaded." }; }
+      if (!res.ok || data.error) throw { msg: data.error || ("HTTP " + res.status), detail: data.detail };
+      render(data);
+    } catch (e) {
+      showError(e.msg || "Network error. Check your internet connection.", e.detail || (e.message || ""));
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Check essay";
     }
+  });
+
+  function render(d) {
+    $("overall").textContent = band(d.overall);
+    $("criteria").innerHTML = d.criteria.map((c) =>
+      '<div class="crit"><b>' + esc(c.name) + '</b><span class="band">' + band(c) + '</span><p>' + esc(c.comment) + '</p></div>'
+    ).join("");
+
+    $("mistakesCard").hidden = !d.mistakes.length;
+    $("mistakes").innerHTML = d.mistakes.map((m) =>
+      '<div class="mistake"><s>' + esc(m.quote) + '</s> → <b>' + esc(m.fix) + '</b><div class="why">' + esc(m.why) + '</div></div>'
+    ).join("");
+
+    $("rewriteCard").hidden = !d.rewrite;
+    $("rewrite").textContent = d.rewrite;
+
+    $("result").hidden = false;
+    $("result").scrollIntoView({ behavior: "smooth" });
   }
-  if (d.next_steps.length) {
-    out.append(el("h2", "", "Next steps"));
-    const ul = el("ul"); d.next_steps.forEach((s) => ul.append(el("li", "", s))); out.append(ul);
-  }
-}
 </script>
 </body>
 </html>

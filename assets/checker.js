@@ -209,21 +209,8 @@
     });
   });
 
-  function highlight(essay, mistakes) {
-    var lower = essay.toLowerCase(), marks = [];
-    mistakes.forEach(function (m, i) {
-      var at = lower.indexOf(m.quote.toLowerCase());
-      if (at >= 0 && !marks.some(function (x) { return at < x.end && at + m.quote.length > x.start; })) marks.push({ start: at, end: at + m.quote.length, i: i });
-    });
-    marks.sort(function (a, b) { return a.start - b.start; });
-    var out = "", pos = 0;
-    marks.forEach(function (x) {
-      var m = mistakes[x.i];
-      out += W.esc(essay.slice(pos, x.start)) + '<mark class="miss" title="' + W.esc(m.fix ? "Better: " + m.fix : m.why) + '">' + W.esc(essay.slice(x.start, x.end)) + "</mark>";
-      pos = x.end;
-    });
-    return out + W.esc(essay.slice(pos));
-  }
+  // Colour-coded marks, tooltips, praise and the feedback box live in assets/insights.js (window.WritoInsights).
+  var X = window.WritoInsights;
 
   // One-step sign-up under a guest's result: email, password, consent, history on by default.
   function saveBox() {
@@ -265,20 +252,26 @@
     var crit = r.criteria.map(function (c) {
       return '<div class="crit-row"><b>' + W.esc(c.name) + '</b><span class="band">' + W.band(c) + '</span><div class="track"><i data-w="' + (c.high / 9 * 100).toFixed(1) + '%"></i></div><p>' + W.esc(c.comment) + "</p></div>";
     }).join("");
+    var marked = X.markedHTML(essay, r.mistakes);
+    var praise = X.praise(essay, r.mistakes);
     var fixes = r.mistakes.length
-      ? '<ul class="fixes">' + r.mistakes.map(function (m) { return "<li><s>" + W.esc(m.quote) + "</s> → <b>" + W.esc(m.fix) + '</b><br><span class="muted small">' + W.esc(m.why) + "</span></li>"; }).join("") + "</ul>"
+      ? '<ul class="fixes">' + r.mistakes.map(function (m) { return '<li class="t-' + X.classify(m) + '"><s>' + W.esc(m.quote) + "</s> → <b>" + W.esc(m.fix) + '</b><br><span class="muted small">' + W.esc(m.why) + "</span></li>"; }).join("") + "</ul>"
       : "";
     var html =
       '<div class="panel"><div class="result-top"><div class="stamp animate" role="img" aria-label="Estimated overall band ' + W.band(r.overall) + '"><div><b>' + W.band(r.overall) + "</b><span>estimated band</span></div></div>" +
       '<div><h2 style="margin-bottom:.3em">Your estimated band</h2><p class="muted" style="margin:0">A range, not an exact score. Here is how each criterion went.</p>' +
       (!r.loggedIn ? '<p style="margin:10px 0 0"><a href="#save-form" class="small" style="font-weight:700">Save this result with a free account</a></p>' : "") + "</div></div>" +
       '<div class="crit">' + crit + "</div>" +
-      (r.mistakes.length ? '<div class="marked"><h3>Your essay, marked</h3><div class="paper">' + (task ? '<div class="task">Task: ' + W.esc(task) + "</div>" : "") + highlight(essay, r.mistakes) + "</div>" + fixes + "</div>" : "") +
+      (marked.count ? '<div class="marked"><h3>Your essay, marked</h3>' + marked.legend + '<p class="muted small mark-help">Hover over or tap a highlight to see why.</p><div class="paper">' + (task ? '<div class="task">Task: ' + W.esc(task) + "</div>" : "") + marked.html + "</div>" + fixes + "</div>" : "") +
       (r.rewrite ? '<div class="marked"><h3>Your weakest paragraph, one band higher</h3><div class="rewrite" id="rewrite-text">' + W.esc(r.rewrite) + '</div><p style="margin-top:10px"><button class="btn quiet sm" type="button" id="copy">Copy paragraph</button></p></div>' : "") +
+      (praise ? '<p class="praise">' + praise + "</p>" : "") +
       (!r.loggedIn ? saveBox() : (r.saved ? '<p class="muted small" style="margin-top:16px">Saved to your <a href="/account">history</a>.</p>' : "")) +
+      X.feedbackHTML() +
       "</div>";
     resEl.innerHTML = html;
     resEl.hidden = false;
+    X.wireTips(resEl);
+    X.wireFeedback({ band: W.band(r.overall) });
     if (!r.loggedIn) wireSaveBox();
     requestAnimationFrame(function () {
       resEl.querySelectorAll(".track i").forEach(function (i) { i.style.width = i.dataset.w; });

@@ -36,6 +36,8 @@
   --olive-soft: #E7EBD3;
   --danger: #A12D2D;
   --danger-soft: #F9E0DC;
+  --ctx: #8A8079;
+  --ctx-soft: rgba(138, 128, 121, .16);
   --shadow: 0 1px 0 rgba(80, 52, 30, .06), 0 10px 30px -12px rgba(80, 52, 30, .22);
   --serif: "Fraunces", "Iowan Old Style", Georgia, "Times New Roman", serif;
   --sans: "Manrope", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -59,6 +61,8 @@
   --olive-soft: #333722;
   --danger: #F2A49A;
   --danger-soft: #4A2522;
+  --ctx: #E9E2D8;
+  --ctx-soft: rgba(233, 226, 216, .14);
   --shadow: 0 1px 0 rgba(0, 0, 0, .3), 0 14px 34px -14px rgba(0, 0, 0, .6);
   color-scheme: dark;
 }
@@ -210,7 +214,12 @@ section { padding: 56px 0; }
 @media (prefers-reduced-motion: reduce) { .track i { transition: none; } }
 .marked { margin-top: 26px; }
 .marked .paper { white-space: pre-wrap; }
-mark.miss { background: var(--marker-soft); color: inherit; border-bottom: 2px solid var(--pen); padding: 0 1px; cursor: help; }
+/* Colour-coded marks: red = grammar/spelling, green = style, grey (white in dark mode) = wording and meaning */
+mark.miss { --c: var(--pen); --bg: var(--pen-soft); background: var(--bg); color: inherit; border-bottom: 2px solid var(--c); border-radius: 2px; padding: 0 1px; cursor: pointer; transition: background .15s; }
+mark.miss.t-style { --c: var(--olive); --bg: var(--olive-soft); }
+mark.miss.t-context { --c: var(--ctx); --bg: var(--ctx-soft); border-bottom-style: dashed; }
+mark.miss:hover, mark.miss.on { background: color-mix(in srgb, var(--c) 26%, transparent); }
+mark.miss:focus-visible { outline: 2px solid var(--c); outline-offset: 1px; }
 .fixes { list-style: none; padding: 0; margin: 18px 0 0; display: grid; gap: 12px; }
 .fixes li { border-left: 3px solid var(--pen); padding: 2px 0 2px 14px; }
 .fixes s { color: var(--ink-2); }
@@ -415,3 +424,44 @@ mark.miss { background: var(--marker-soft); color: inherit; border-bottom: 2px s
 .countdown:not(:empty)::before { content: "· "; }
 .gate .gift { color: var(--olive); }
 .gate .field { margin-bottom: 14px; }
+
+/* Mark colour key and tooltip */
+.legend { list-style: none; display: flex; flex-wrap: wrap; gap: 6px 18px; padding: 0; margin: 0 0 4px; font-size: .9rem; font-weight: 600; color: var(--ink-2); }
+.legend li { display: flex; align-items: center; gap: 7px; }
+.legend .key { width: 18px; height: 10px; border-radius: 2px; background: var(--pen-soft); border-bottom: 2px solid var(--pen); }
+.legend .key.t-style { background: var(--olive-soft); border-color: var(--olive); }
+.legend .key.t-context { background: var(--ctx-soft); border-bottom: 2px dashed var(--ctx); }
+.mark-help { margin: 0 0 12px; }
+.mark-tip { position: absolute; z-index: 60; max-width: min(300px, calc(100vw - 16px)); background: var(--ink); color: var(--paper); border-radius: var(--r-s); padding: 10px 12px; font: 500 .88rem/1.45 var(--sans); box-shadow: var(--shadow); display: grid; gap: 3px; pointer-events: none; border-top: 3px solid var(--pen); }
+.mark-tip.t-style { border-top-color: var(--olive); }
+.mark-tip.t-context { border-top-color: var(--ctx); }
+.mark-tip b { font-weight: 800; }
+.mark-tip .tip-fix { font-weight: 700; }
+.fixes li.t-style { border-left-color: var(--olive); }
+.fixes li.t-context { border-left-color: var(--ctx); border-left-style: dashed; }
+
+/* Factual praise: a short margin note in the examiner's green */
+.praise { margin: 26px 0 0; padding: 14px 18px; border-left: 3px solid var(--olive); background: color-mix(in srgb, var(--olive-soft) 60%, var(--sheet)); border-radius: 0 var(--r-m) var(--r-m) 0; font-size: .98rem; }
+.praise b { color: var(--olive); }
+
+/* Feedback box: one quiet row, opens a comment field after a rating */
+.fb { margin-top: 26px; padding: 14px 16px; border-top: 1px dashed var(--rule); }
+.fb-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.fb-row p { margin: 0; font-weight: 700; }
+.fb-faces { display: flex; gap: 4px; }
+.fb-faces button { border: 0; background: transparent; font-size: 1.45rem; line-height: 1; width: 42px; height: 42px; border-radius: 50%; cursor: pointer; filter: grayscale(.85); opacity: .75; transition: transform .15s, filter .15s, opacity .15s, background .15s; }
+.fb-faces button:hover, .fb-faces button[aria-checked="true"] { filter: none; opacity: 1; transform: scale(1.12); }
+.fb-faces button[aria-checked="true"] { background: var(--marker-soft); }
+.fb-heart { display: inline-flex; align-items: center; gap: 7px; border: 1.5px solid var(--pen); background: transparent; color: var(--pen); border-radius: 99px; padding: 8px 16px 8px 12px; font: 700 .95rem/1 var(--sans); cursor: pointer; transition: background .15s, color .15s, transform .15s; }
+.fb-heart svg { fill: none; stroke: currentColor; stroke-width: 2; transition: fill .15s; }
+.fb-heart:hover { background: var(--pen-soft); }
+.fb-heart[aria-pressed="true"] { background: var(--pen); color: var(--pen-ink); }
+.fb-heart[aria-pressed="true"] svg { fill: currentColor; }
+.fb-more { display: flex; gap: 10px; align-items: flex-start; margin-top: 12px; opacity: 0; transform: translateY(-4px); transition: opacity .25s ease, transform .25s ease; }
+.fb-more.open { opacity: 1; transform: none; }
+.fb-more textarea { flex: 1; min-height: 44px; resize: vertical; font-size: .95rem; padding: 10px 12px; }
+.fb-thanks { margin: 0; display: flex; align-items: center; gap: 8px; font-weight: 700; color: var(--pen); }
+.fb-thanks svg { fill: currentColor; flex: none; }
+@media (prefers-reduced-motion: no-preference) { .fb-heart[aria-pressed="true"] svg { animation: beat .5s ease; } @keyframes beat { 40% { transform: scale(1.3); } } }
+@media (prefers-reduced-motion: reduce) { .fb-more, .fb-faces button, .fb-heart { transition: none; } }
+@media (max-width: 520px) { .fb-more { flex-direction: column; align-items: stretch; } }

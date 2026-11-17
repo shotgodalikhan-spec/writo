@@ -9,7 +9,8 @@ const MODELS = [
 ];
 const MODEL_TIMEOUT_MS = 20000;
 
-export const LIMITS = { guest: 1, user: 5, ipTotal: 15, global: 60 };
+// guest: per IP per day. The browser also caps a guest at GUEST_TOTAL checks in total (assets/checker.js).
+export const LIMITS = { guest: 5, user: 5, ipTotal: 15, global: 60 };
 
 const CRITERIA = [
   { key: "task_response", name: "Task Response" },
@@ -159,7 +160,7 @@ function limitError(kind) {
   const wait = secondsToUtcMidnight();
   const hours = Math.max(1, Math.round(wait / 3600));
   const msgs = {
-    guest: "You have used your free check for today. Create a free account to get " + LIMITS.user + " checks a day, or come back in about " + hours + " h.",
+    guest: "You have used the free checks for your network today. Create a free account to get " + LIMITS.user + " checks every day, or come back in about " + hours + " h.",
     user: "You have used all " + LIMITS.user + " free checks for today. New checks unlock in about " + hours + " h.",
     ip: "Too many checks from your network today. Please try again in about " + hours + " h.",
     global: "Writo is very busy today and has reached its free daily capacity. Please come back in about " + hours + " h.",

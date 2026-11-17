@@ -98,13 +98,51 @@
     clearInterval(ticking); ticking = null; left = total; drawTimer(); $("timer-start").textContent = "Start";
   });
 
+  // Guests get GUEST_TOTAL checks in this browser, no sign-up needed.
+  // The server has its own daily limit per network; this counter decides when to suggest an account.
+  var GUEST_TOTAL = 5, GUEST_KEY = "writo-guest-used";
+  function guestUsed() {
+    try { return Math.max(0, parseInt(localStorage.getItem(GUEST_KEY), 10) || 0); } catch (e) { return 0; }
+  }
+  function addGuestUse() {
+    try { localStorage.setItem(GUEST_KEY, String(guestUsed() + 1)); } catch (e) {}
+  }
+  function guestLeft() { return Math.max(0, GUEST_TOTAL - guestUsed()); }
+
   function showLeft(n, loggedIn) {
     if (n == null) return;
-    $("left").textContent = n === 0
-      ? "No free checks left today."
-      : n + (n === 1 ? " free check" : " free checks") + " left today" + (loggedIn ? "." : " without an account.");
+    if (!loggedIn) {
+      var g = Math.min(n, guestLeft());
+      $("left").textContent = guestLeft() === 0
+        ? "You have used your " + GUEST_TOTAL + " free checks."
+        : g === 0 ? "No free checks left on your network today."
+        : g + " of " + GUEST_TOTAL + " free checks left. No sign-up needed.";
+      return;
+    }
+    $("left").textContent = n === 0 ? "No free checks left today." : n + (n === 1 ? " free check" : " free checks") + " left today.";
   }
-  W.me.then(function (me) { showLeft(me.remaining, Boolean(me.user)); W._user = me.user; });
+  var me = { user: null };
+  W.me.then(function (m) { me = m; showLeft(m.remaining, Boolean(m.user)); W._user = m.user; });
+
+  // Soft invitation shown when a guest has used all free checks. Never blocks the rest of the site.
+  var gate;
+  function openGate() {
+    if (!gate) {
+      gate = document.createElement("dialog");
+      gate.className = "gate";
+      gate.setAttribute("aria-labelledby", "gate-title");
+      gate.innerHTML =
+        '<form method="dialog" class="gate-close"><button class="icon-btn" aria-label="Close">×</button></form>' +
+        '<h2 id="gate-title">You have used your ' + GUEST_TOTAL + ' free checks</h2>' +
+        '<p>Create a free account to keep going: ' + W.esc(String((me.limits && me.limits.user) || 5)) + ' checks every day, and your results saved if you want them. Your essay stays where it is.</p>' +
+        '<div class="gate-actions"><a class="btn" href="/signup">Create a free account</a><a class="btn ghost" href="/login">Log in</a></div>' +
+        '<p class="muted small">Need more? <a href="/pricing">See the Pro plan</a>.</p>';
+      document.body.appendChild(gate);
+      gate.addEventListener("click", function (e) { if (e.target === gate) gate.close(); });
+    }
+    if (typeof gate.showModal === "function") { if (!gate.open) gate.showModal(); }
+    else showError({ error: "You have used your " + GUEST_TOTAL + " free checks.", limit: "guest" });
+  }
 
   var stages = ["Reading your essay", "Scoring the four criteria", "Finding your key mistakes", "Rewriting your weakest paragraph"];
   var stageTimer;
@@ -132,11 +170,13 @@
     var n = words(essayEl.value);
     if (n < 120) { showError({ error: "Your essay has " + n + " words. Please write at least 120 (Task 2 needs 250+)." }); essayEl.focus(); return; }
     if (n > 500) { showError({ error: "Your essay has " + n + " words. The maximum is 500." }); return; }
+    if (!me.user && guestLeft() === 0) { openGate(); return; }
     loading(true);
     var essay = essayEl.value, task = taskEl.value;
     W.api("/api/check", { essay: essay, task: task }).then(function (r) {
       loading(false);
-      if (!r._ok) { showError(r); return; }
+      if (!r._ok) { showError(r); if (r.limit === "guest") openGate(); return; }
+      if (!r.loggedIn) addGuestUse();
       render(r, essay, task);
       showLeft(r.remaining, r.loggedIn);
       if (!r.loggedIn) {

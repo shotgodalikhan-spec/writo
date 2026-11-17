@@ -275,6 +275,22 @@ mark.miss { background: var(--marker-soft); color: inherit; border-bottom: 2px s
 .toast { position: fixed; left: 50%; bottom: 24px; transform: translate(-50%, 20px); opacity: 0; background: var(--ink); color: var(--paper); padding: 12px 18px; border-radius: var(--r-m); font-weight: 600; transition: all .25s; z-index: 60; pointer-events: none; }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
+/* Free-checks invitation (shown to guests after their free checks) */
+.gate { width: min(440px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto; border: 1px solid var(--rule); border-radius: var(--r-l); background: var(--sheet); color: var(--ink); padding: 30px 28px 22px; box-shadow: var(--shadow); }
+.gate::backdrop { background: rgba(28, 24, 21, .45); }
+.gate h2 { font-size: 1.6rem; margin: 0 28px .45em 0; }
+.gate p { margin: 0 0 18px; color: var(--ink-2); }
+.gate .gate-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
+.gate .gate-actions .btn { flex: 1 1 180px; }
+.gate .gate-close { position: absolute; top: 10px; right: 10px; margin: 0; }
+.gate .icon-btn { width: 40px; height: 40px; border: 0; border-radius: 50%; background: none; color: var(--ink-2); font: 400 1.6rem/1 var(--sans); cursor: pointer; }
+.gate .icon-btn:hover { background: var(--sheet-2); color: var(--ink); }
+.gate .icon-btn:focus-visible { outline: 2px solid var(--pen); outline-offset: 2px; }
+@media (prefers-reduced-motion: no-preference) {
+  .gate[open] { animation: gate-in .2s ease-out; }
+  @keyframes gate-in { from { opacity: 0; transform: translateY(8px); } }
+}
+
 /* Responsive */
 @media (max-width: 960px) {
   .hero-grid, .trust, .checker { grid-template-columns: 1fr; }

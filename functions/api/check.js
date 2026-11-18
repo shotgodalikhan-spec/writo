@@ -11,7 +11,11 @@ const MODELS = [
   "@cf/meta/llama-4-scout-17b-16e-instruct",
   "@cf/meta/llama-3.1-8b-instruct-fast",
 ];
-const LIGHT_MODELS = MODELS.slice(1);
+// Optional free overflow: Groq runs Llama 70B too. Used only when the secret GROQ_API_KEY is set in Cloudflare.
+// Order: best Cloudflare model, then Groq, then the lighter Cloudflare models. Late in the day Groq goes first
+// (same quality, and it does not spend the Cloudflare allowance). After the allowance is used up only Groq is left.
+const GROQ = "groq";
+const GROQ_URL = "https://api.groq.com/openai/v1/chat/completions";
 const MODEL_TIMEOUT_MS = 20000;
 
 // Daily limits live in lib/quota.js (LIMITS), shared with /api/me.
@@ -144,6 +148,17 @@ function withTimeout(promise, ms) {
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
+async function callGroq(env, messages) {
+  const res = await withTimeout(fetch(GROQ_URL, {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: "Bearer " + env.GROQ_API_KEY },
+    body: JSON.stringify({ model: env.GROQ_MODEL || "llama-3.3-70b-versatile", messages, max_tokens: 1000, temperature: 0.2 }),
+  }), MODEL_TIMEOUT_MS);
+  if (!res.ok) throw new Error("groq " + res.status);
+  const data = await res.json();
+  return { choices: data.choices, usage: data.usage };
+}
+
 function limitError(q) {
   const hours = Math.max(1, Math.round(q.resetInSeconds / 3600));
   const msgs = {
@@ -191,14 +206,17 @@ export async function onRequestPost({ request, env }) {
   const messages = buildMessages(task, essay);
   const failures = [];
 
-  const light = q.mode === "light";
   const promptChars = messages.reduce((n, m) => n + m.content.length, 0);
+  const groq = env.GROQ_API_KEY ? [GROQ] : [];
+  const plan = q.mode === "full" ? [MODELS[0], ...groq, ...MODELS.slice(1)] : q.mode === "light" ? [...groq, ...MODELS.slice(1)] : groq;
 
-  for (const model of light ? LIGHT_MODELS : MODELS) {
+  for (const model of plan) {
     try {
-      const out = await withTimeout(env.AI.run(model, { messages, max_tokens: 1800, temperature: 0.2 }), MODEL_TIMEOUT_MS);
+      const isGroq = model === GROQ;
+      const out = isGroq ? await callGroq(env, messages) : await withTimeout(env.AI.run(model, { messages, max_tokens: 1800, temperature: 0.2 }), MODEL_TIMEOUT_MS);
       const text = extractText(out);
-      const neurons = neuronsUsed(model, out && out.usage, promptChars, text.length); // the model used these even if the answer is not usable
+      // Cloudflare neurons the model used, even if the answer is not usable. Groq does not touch the Cloudflare allowance.
+      const neurons = isGroq ? 0 : neuronsUsed(model, out && out.usage, promptChars, text.length);
       const parsed = parseModelJSON(text);
       if (parsed && parsed.rejected === true) {
         await spend(db, [], neurons);
@@ -208,7 +226,7 @@ export async function onRequestPost({ request, env }) {
       if (!result) { await spend(db, [], neurons); failures.push(model + ": unexpected answer format"); continue; }
 
       await spend(db, q.keys, neurons);
-      const response = { ...result, model, light: light || model !== MODELS[0], words, remaining: Math.max(0, q.remaining - 1), loggedIn: Boolean(user), saved: false };
+      const response = { ...result, model, light: !(model === MODELS[0] || model === GROQ), words, remaining: Math.max(0, q.remaining - 1), loggedIn: Boolean(user), saved: false };
 
       // Account owners: every check is kept, one record per essay.
       if (db && user) {

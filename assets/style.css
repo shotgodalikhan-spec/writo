@@ -229,7 +229,7 @@ mark.miss:focus-visible { outline: 2px solid var(--c); outline-offset: 1px; }
 /* Home: "try first" checker */
 .try { padding: 40px 0 48px; }
 .try-head { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-bottom: 22px; }
-.try-head h1 { font-size: clamp(2rem, 4.6vw, 3.3rem); margin: 0; }
+.try-head h1 { font-size: clamp(1.65rem, 3.3vw, 2.4rem); margin: 0; }
 .free-tag { font: 700 .9rem/1 var(--sans); color: var(--ink); background: var(--marker-soft); box-shadow: inset 0 -2px 0 var(--marker); padding: 7px 11px 6px; border-radius: 4px; transform: rotate(-2deg); white-space: nowrap; }
 .try-grid { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 32px; align-items: start; }
 .sheet-form { background: var(--sheet); border: 1px solid var(--rule); border-radius: var(--r-l); padding: 24px 26px 22px; box-shadow: var(--shadow); }

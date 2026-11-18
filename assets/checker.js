@@ -367,6 +367,7 @@
       (marked.count ? '<div class="marked"><h3>Your essay, marked</h3>' + marked.legend + '<p class="muted small mark-help">Hover over or tap a highlight to see why.</p><div class="paper">' + (task ? '<div class="task">Task: ' + W.esc(task) + "</div>" : "") + marked.html + "</div>" + fixes + "</div>" : "") +
       (r.rewrite ? '<div class="marked"><h3>Your weakest paragraph, one band higher</h3><div class="rewrite" id="rewrite-text">' + W.esc(r.rewrite) + '</div><p style="margin-top:10px"><button class="btn quiet sm" type="button" id="copy">Copy paragraph</button></p></div>' : "") +
       (praise ? '<p class="praise">' + praise + "</p>" : "") +
+      '<div class="improve-card"><div><h3>Want to go further?</h3><p>Lessons built on your own mistakes, progress tracking and a personal AI coach are coming.</p></div><button class="btn shine" type="button" data-improve>I want to improve my writing</button></div>' +
       actions +
       (!r.loggedIn ? saveBox() : (r.saved ? '<p class="muted small" style="margin-top:16px">Saved to your <a href="/account">history</a>.</p>' : "")) +
       X.feedbackHTML() +

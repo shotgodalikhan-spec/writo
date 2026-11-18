@@ -518,3 +518,28 @@ mark.miss:focus-visible { outline: 2px solid var(--c); outline-offset: 1px; }
 .tags { margin: 8px 0 0; display: flex; flex-wrap: wrap; gap: 6px; }
 .tags span { font-size: .78rem; font-weight: 700; background: var(--sheet-2); color: var(--ink-2); border-radius: 99px; padding: 3px 9px; }
 .new-tag { font-size: .72rem; font-weight: 800; background: var(--marker); color: var(--ink); border-radius: 99px; padding: 2px 7px; vertical-align: 2px; }
+
+/* Key buttons: gentle grow and one pass of light on hover, a small press on click.
+   Hover effects only on devices with a mouse; none for people who ask for less motion; none while disabled. */
+.btn.shine { position: relative; overflow: hidden; isolation: isolate; }
+.btn.shine::after { content: ""; position: absolute; top: 0; bottom: 0; left: -60%; width: 40%; background: linear-gradient(100deg, transparent, rgba(255, 255, 255, .5), transparent); transform: translateX(0) skewX(-18deg); opacity: 0; pointer-events: none; }
+@keyframes shine { from { transform: translateX(0) skewX(-18deg); opacity: 1; } to { transform: translateX(520%) skewX(-18deg); opacity: 1; } }
+@media (prefers-reduced-motion: no-preference) {
+  .btn.shine { transition: transform .2s ease, filter .15s ease, box-shadow .2s ease; }
+  .btn.shine:not(:disabled):active { transform: scale(.98); transition-duration: .08s; }
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .btn.shine:not(:disabled):hover { transform: scale(1.03); box-shadow: 0 12px 26px -12px color-mix(in srgb, var(--pen) 75%, transparent); }
+  #submit.shine:not(:disabled):hover { transform: scale(1.02); }
+  .btn.shine:not(:disabled):hover::after, .btn.shine:not(:disabled):focus-visible::after { animation: shine .7s ease-out; }
+  .btn.shine:not(:disabled):active { transform: scale(.98); }
+}
+
+/* "Want to go further?" card under a result */
+.improve-card { margin-top: 26px; padding: 20px 22px; border-radius: var(--r-l); border: 1px solid var(--rule); background: linear-gradient(135deg, color-mix(in srgb, var(--marker-soft) 70%, var(--sheet)), color-mix(in srgb, var(--pen-soft) 55%, var(--sheet))); display: flex; flex-wrap: wrap; align-items: center; gap: 14px 22px; }
+.improve-card > div { flex: 1 1 260px; }
+.improve-card h3 { margin: 0 0 4px; font-size: 1.2rem; }
+.improve-card p { margin: 0; color: var(--ink-2); }
+.improve-card .btn { flex: 0 0 auto; }
+@media (max-width: 520px) { .improve-card .btn { width: 100%; white-space: normal; } }
+.gate.improve .confirm-actions { margin-top: 4px; }

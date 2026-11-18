@@ -2,18 +2,14 @@
 // Only the site owner's account can read it.
 // Owner = the account whose id is in OWNER_USER_IDS. An account id is random and cannot be claimed by
 // someone else, unlike an email address (sign-up does not verify email ownership).
-// Setup, once: log in as yourself, open /inbox, copy the "account id" shown there into OWNER_USER_IDS.
-// Until then (list empty) the account with the owner email below is accepted, so the page works on day one.
 // Ideas and problem reports are sorted into themes automatically by keywords (English and Russian),
 // so the owner sees at a glance what people ask for most. No AI is used, so it costs nothing.
-import { json, getUser, sha256Hex } from "../../../lib/core.js";
+import { json, getUser } from "../../../lib/core.js";
 
-export const OWNER_USER_IDS = [];
-const OWNER_EMAIL_SHA256 = ["8698088e71a635097806a3f4eba1c50b03d6071365d42e88c1be72de049e2d16"]; // setup fallback only: an account that already exists, so nobody else can register this email
+export const OWNER_USER_IDS = ["fd5bdc702d52fff9aa3676fa"];
 
-export async function isOwner(user, ids = OWNER_USER_IDS) {
-  if (ids.length) return ids.includes(user.id);
-  return OWNER_EMAIL_SHA256.includes(await sha256Hex(String(user.email).trim().toLowerCase()));
+export function isOwner(user, ids = OWNER_USER_IDS) {
+  return ids.includes(user.id);
 }
 
 // Theme -> words that point to it. Lower-case; Russian stems match any ending.
@@ -44,7 +40,7 @@ export function themesOf(text) {
 export async function onRequestGet({ request, env }) {
   const user = await getUser(env, request);
   if (!user) return json({ error: "Log in with the owner account to see feedback." }, 401);
-  if (!(await isOwner(user))) return json({ error: "This page is only for the site owner." }, 403);
+  if (!isOwner(user)) return json({ error: "This page is only for the site owner." }, 403);
   if (!env.DB) return json({ error: "The database is not available." }, 503);
 
   let rows = [];
@@ -54,6 +50,13 @@ export async function onRequestGet({ request, env }) {
     rows = res.results || [];
   } catch (e) {
     if (!/no such table/i.test(String(e && e.message))) throw e; // the table appears with the first message
+  }
+  let waitlistCount = 0; // the "waitlist" table has only emails; the owner sees how many, not who
+  try {
+    const w = await env.DB.prepare("SELECT COUNT(*) AS n FROM waitlist").first();
+    waitlistCount = (w && w.n) || 0;
+  } catch (e) {
+    if (!/no such table/i.test(String(e && e.message))) throw e;
   }
   const items = rows.map((r) => ({
     created_at: r.created_at, kind: r.kind || "rating", rating: r.rating, text: r.text || "", band: r.band || "", page: r.page || "",
@@ -67,8 +70,6 @@ export async function onRequestGet({ request, env }) {
   };
   const since = Number(new URL(request.url).searchParams.get("since")) || 0;
   return json({
-    // Shown only until OWNER_USER_IDS is filled in (see the top of this file).
-    setupAccountId: OWNER_USER_IDS.length ? null : user.id,
     ratings: {
       total: ratings.length,
       hearts: ratings.filter((r) => r.rating === 5).length,
@@ -77,7 +78,10 @@ export async function onRequestGet({ request, env }) {
     },
     ideas: count("idea"),
     problems: count("problem"),
+    // People who want to improve their writing with a paid plan: "I'm interested" votes and early-access emails.
+    interest: { votes: items.filter((r) => r.kind === "interest").length, emails: waitlistCount },
     newSince: since ? {
+      interest: items.filter((r) => r.kind === "interest" && r.created_at > since).length,
       ratings: ratings.filter((r) => r.created_at > since).length,
       ideas: items.filter((r) => r.kind === "idea" && r.created_at > since).length,
       problems: items.filter((r) => r.kind === "problem" && r.created_at > since).length,

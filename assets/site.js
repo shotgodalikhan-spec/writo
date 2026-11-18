@@ -225,6 +225,74 @@
   pill.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/></svg><span>Ideas &amp; problems</span>';
   document.body.appendChild(pill);
 
+  /* ---------- "I want to improve my writing" window ---------- */
+  // Honest early-access window: no paid plan exists yet and nobody is charged.
+  // "Notify me" saves the email in the waitlist (/api/waitlist), "I'm interested" saves a vote without an email
+  // (/api/feedback, kind "interest"). Both are read by the owner at /inbox.
+  var improve;
+  W.openImprove = function () {
+    if (!improve) {
+      improve = document.createElement("dialog");
+      improve.className = "gate improve";
+      improve.setAttribute("aria-labelledby", "improve-title");
+      improve.innerHTML =
+        '<form method="dialog" class="gate-close"><button class="icon-btn" aria-label="Close">×</button></form>' +
+        '<h2 id="improve-title">A deeper way to improve is coming</h2>' +
+        '<div id="improve-main"><p>We are building lessons based on <b>your own mistakes</b>, progress tracking and a personal AI coach. It will be part of a future paid plan. <b class="gift">Nothing is for sale yet and nobody is charged.</b></p>' +
+        '<form id="improve-form" novalidate>' +
+        '<div class="field"><label for="improve-email">Email for early access</label><input id="improve-email" type="email" autocomplete="email" placeholder="you@gmail.com"></div>' +
+        '<p class="muted small" style="margin:0 0 14px">One email when it opens. No spam. See the <a href="/privacy" target="_blank">Privacy policy</a>.</p>' +
+        '<div id="improve-err" role="alert" hidden></div>' +
+        '<div class="confirm-actions"><button class="btn shine" type="submit">Notify me</button><button class="btn ghost" type="button" id="improve-vote">I\'m interested</button></div>' +
+        "</form></div>" +
+        '<div id="improve-done" hidden><p class="fb-thanks"></p><button class="btn ghost" type="button" id="improve-close">Close</button></div>';
+      document.body.appendChild(improve);
+      improve.addEventListener("click", function (e) { if (e.target === improve) improve.close(); });
+      improve.querySelector("#improve-close").addEventListener("click", function () { improve.close(); });
+      var done = function (msg) {
+        improve.querySelector("#improve-main").hidden = true;
+        improve.querySelector("#improve-done").hidden = false;
+        improve.querySelector("#improve-done .fb-thanks").textContent = msg;
+      };
+      improve.querySelector("#improve-form").addEventListener("submit", function (e) {
+        e.preventDefault();
+        var email = improve.querySelector("#improve-email").value.trim(), err = improve.querySelector("#improve-err");
+        err.hidden = true;
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) { W.alert(err, "err", "Enter a valid email address, or press \"I'm interested\"."); improve.querySelector("#improve-email").focus(); return; }
+        var b = e.target.querySelector("button[type=submit]");
+        b.disabled = true;
+        W.api("/api/waitlist", { email: email }).then(function (r) {
+          b.disabled = false;
+          if (!r._ok) { W.alert(err, "err", r.error); return; }
+          done("You are on the list. We will email you once, when it opens.");
+        });
+      });
+      improve.querySelector("#improve-vote").addEventListener("click", function () {
+        var b = this, err = improve.querySelector("#improve-err");
+        err.hidden = true; b.disabled = true;
+        var id = Array.prototype.map.call(crypto.getRandomValues(new Uint8Array(8)), function (x) { return ("0" + x.toString(16)).slice(-2); }).join("");
+        W.api("/api/feedback", { id: id, kind: "interest", page: location.pathname }).then(function (r) {
+          b.disabled = false;
+          if (!r._ok) { W.alert(err, "err", r.error); return; }
+          done("Thank you! We will build this with people like you in mind.");
+        });
+      });
+    }
+    improve.querySelector("#improve-main").hidden = false;
+    improve.querySelector("#improve-done").hidden = true;
+    improve.querySelector("#improve-err").hidden = true;
+    // Logged-in people get their account email filled in; they can change it.
+    var em = improve.querySelector("#improve-email");
+    W.me.then(function (m) { if (m.user && !em.value) em.value = m.user.email; });
+    if (typeof improve.showModal === "function") { if (!improve.open) improve.showModal(); }
+    else improve.setAttribute("open", "");
+    em.focus({ preventScroll: true });
+  };
+  document.addEventListener("click", function (e) {
+    var t = e.target.closest && e.target.closest("[data-improve]");
+    if (t) { e.preventDefault(); W.openImprove(); }
+  });
+
   /* ---------- Owner: new messages badge ---------- */
   // Only in the owner's browser (set when /inbox opens successfully). Others never call the admin API.
   W.me.then(function (m) {
@@ -235,7 +303,7 @@
     try { seen = Number(localStorage.getItem("writo-inbox-seen")) || 0; } catch (e) {}
     W.api("/api/admin/feedback?since=" + seen).then(function (r) {
       if (!r._ok || !r.newSince) return;
-      var n = r.newSince.ratings + r.newSince.ideas + r.newSince.problems;
+      var n = r.newSince.ratings + r.newSince.ideas + r.newSince.problems + (r.newSince.interest || 0);
       if (!n) return;
       var a = document.createElement("a");
       a.className = "inbox-badge";

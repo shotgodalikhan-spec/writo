@@ -1,0 +1,25 @@
+# Free uptime monitor: every 30 minutes GitHub checks that the site, the account API and the AI binding answer.
+# If a check fails, the run fails and GitHub emails the account owner (Settings > Notifications > Actions).
+# Note: GitHub pauses scheduled workflows after 60 days without any commit to the repo; any push turns it back on.
+name: Uptime check
+on:
+  schedule:
+    - cron: "*/30 * * * *"
+  workflow_dispatch:
+permissions: {}
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Site, API and AI answer
+        run: |
+          for url in https://getwrito.pages.dev/ https://getwrito.pages.dev/api/me; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" --retry 2 --retry-delay 20 --max-time 30 "$url")
+            echo "$url -> $code"
+            if [ "$code" != "200" ]; then echo "::error::$url returned $code"; exit 1; fi
+          done
+          body=$(curl -s --retry 2 --retry-delay 20 --max-time 30 https://getwrito.pages.dev/api/check)
+          echo "$body" | grep -q '"aiBinding":true' || { echo "::error::AI binding missing: $body"; exit 1; }
+          echo "$body" | grep -q '"database":true' || { echo "::error::Database missing: $body"; exit 1; }
+          echo "All good"

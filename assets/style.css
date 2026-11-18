@@ -568,3 +568,6 @@ mark.miss:focus-visible { outline: 2px solid var(--c); outline-offset: 1px; }
 @media (min-width: 761px) and (max-width: 900px) { .nav { margin-left: 4px; gap: 0; } .nav a { padding: 8px 8px; } .head-actions { gap: 6px; } }
 
 .alert.warn { background: var(--marker-soft); color: var(--ink); }
+
+/* The word counter sits in the bottom corner of the essay box: keep the last lines of text above it */
+.essay-box textarea { padding-bottom: 44px; }

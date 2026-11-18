@@ -9,7 +9,7 @@
 import { json, getUser, sha256Hex } from "../../../lib/core.js";
 
 export const OWNER_USER_IDS = [];
-const OWNER_EMAIL_SHA256 = ["3e93bb3339009382a8166ac29f5eca1f6a834a6a0743a449861152fe321160de"]; // setup fallback only
+const OWNER_EMAIL_SHA256 = ["8698088e71a635097806a3f4eba1c50b03d6071365d42e88c1be72de049e2d16"]; // setup fallback only: an account that already exists, so nobody else can register this email
 
 export async function isOwner(user, ids = OWNER_USER_IDS) {
   if (ids.length) return ids.includes(user.id);

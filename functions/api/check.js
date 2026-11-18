@@ -62,8 +62,8 @@ export async function onRequestGet({ request, env }) {
     const user = await getUser(env, request);
     if (user && isOwner(user)) {
       try {
-        const answer = await callGroq(env, [{ role: "user", content: "Reply with the single word: ok" }], 5);
-        out.groqProbe = { ok: true, model: env.GROQ_MODEL || "llama-3.3-70b-versatile", reply: String(extractText(answer)).slice(0, 20) };
+        const answer = await callGroq(env, [{ role: "user", content: "Reply with the single word: ok" }], 200);
+        out.groqProbe = { ok: true, model: env.GROQ_MODEL || GROQ_MODEL, reply: String(extractText(answer)).slice(0, 20) };
       } catch (e) { out.groqProbe = { ok: false, error: String((e && e.message) || e).slice(0, 80) }; }
     }
   }
@@ -161,11 +161,18 @@ function withTimeout(promise, ms) {
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
-async function callGroq(env, messages, maxTokens = 1000) {
+// Groq retired llama-3.3-70b-versatile for the free plan (16 Aug 2026) and recommends openai/gpt-oss-120b.
+// That model thinks before it answers and the thinking counts toward max_tokens, so it gets a larger limit
+// and reasoning_effort "low". GROQ_MODEL can change the model without a new release.
+const GROQ_MODEL = "openai/gpt-oss-120b";
+async function callGroq(env, messages, maxTokens = 1800) {
+  const model = env.GROQ_MODEL || GROQ_MODEL;
+  const body = { model, messages, max_tokens: maxTokens, temperature: 0.2 };
+  if (model.startsWith("openai/gpt-oss")) body.reasoning_effort = "low";
   const res = await withTimeout(fetch(GROQ_URL, {
     method: "POST",
     headers: { "content-type": "application/json", authorization: "Bearer " + env.GROQ_API_KEY },
-    body: JSON.stringify({ model: env.GROQ_MODEL || "llama-3.3-70b-versatile", messages, max_tokens: maxTokens, temperature: 0.2 }),
+    body: JSON.stringify(body),
   }), MODEL_TIMEOUT_MS);
   if (!res.ok) throw new Error("groq " + res.status);
   const data = await res.json();

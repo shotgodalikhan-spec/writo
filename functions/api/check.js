@@ -2,6 +2,7 @@
 import { json, readJson, sameOrigin, getUser } from "../../lib/core.js";
 import { LIMITS, quota, spend, cookieHeaders, neuronsUsed } from "../../lib/quota.js";
 import { essayHash, findCheck, saveCheck } from "../../lib/checks.js";
+import { isOwner } from "./admin/feedback.js";
 
 // Best model first. Each model gets a time limit, then the next one is tried.
 // Late in the day (quota() says mode "light") the best model is skipped: the lighter one costs about half the
@@ -53,8 +54,20 @@ export function looksLikeEnglishEssay(text) {
   return null;
 }
 
-export async function onRequestGet({ env }) {
-  return json({ ok: true, aiBinding: Boolean(env.AI), database: Boolean(env.DB), models: MODELS });
+// Diagnostics. "groq" only says whether the secret is set. The owner can add ?probe=1 (while logged in) to send one
+// tiny request to Groq and see whether it answers: it costs nothing and sends no essay.
+export async function onRequestGet({ request, env }) {
+  const out = { ok: true, aiBinding: Boolean(env.AI), database: Boolean(env.DB), groq: Boolean(env.GROQ_API_KEY), models: MODELS };
+  if (env.GROQ_API_KEY && new URL(request.url).searchParams.get("probe")) {
+    const user = await getUser(env, request);
+    if (user && isOwner(user)) {
+      try {
+        const answer = await callGroq(env, [{ role: "user", content: "Reply with the single word: ok" }], 5);
+        out.groqProbe = { ok: true, model: env.GROQ_MODEL || "llama-3.3-70b-versatile", reply: String(extractText(answer)).slice(0, 20) };
+      } catch (e) { out.groqProbe = { ok: false, error: String((e && e.message) || e).slice(0, 80) }; }
+    }
+  }
+  return json(out);
 }
 
 function extractText(out) {
@@ -148,11 +161,11 @@ function withTimeout(promise, ms) {
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
-async function callGroq(env, messages) {
+async function callGroq(env, messages, maxTokens = 1000) {
   const res = await withTimeout(fetch(GROQ_URL, {
     method: "POST",
     headers: { "content-type": "application/json", authorization: "Bearer " + env.GROQ_API_KEY },
-    body: JSON.stringify({ model: env.GROQ_MODEL || "llama-3.3-70b-versatile", messages, max_tokens: 1000, temperature: 0.2 }),
+    body: JSON.stringify({ model: env.GROQ_MODEL || "llama-3.3-70b-versatile", messages, max_tokens: maxTokens, temperature: 0.2 }),
   }), MODEL_TIMEOUT_MS);
   if (!res.ok) throw new Error("groq " + res.status);
   const data = await res.json();

@@ -49,7 +49,7 @@
       $("left-today").textContent = me.remaining + " of " + me.limits.user + " free checks left today";
       $("target").value = u.target_band == null ? "" : String(Number(u.target_band) % 1 ? u.target_band : Number(u.target_band));
       $("exam").value = u.exam_date || "";
-      $("plan").textContent = u.plan === "free" ? "Free plan: " + me.limits.user + " checks a day" : "Unlimited";
+      $("plan").textContent = "Free for students: " + me.limits.user + " checks a day";
       $("since").textContent = "Member since " + W.date(u.created_at);
       showCountdown(u.exam_date);
       loadHistory(u);

@@ -64,7 +64,7 @@
     '<a class="skip" href="#main">Skip to content</a><div class="wrap">' +
     '<a class="brand" href="/" aria-label="Writo home">' + LOGO + "Writo</a>" +
     '<span class="beta" title="Writo is in beta: scores are estimates">BETA</span>' +
-    '<nav class="nav" id="nav" aria-label="Main">' + navLink("/#check", "Check an essay", "check") + navLink("/#how", "How it works", "how") + navLink("/pricing", "Pricing", "pricing") + navLink("/guides/", "Guides", "guides") + '<a href="/login" class="m-login">Log in</a>' + THEME + SND + "</nav>" +
+    '<nav class="nav" id="nav" aria-label="Main">' + navLink("/#check", "Check an essay", "check") + navLink("/#how", "How it works", "how") + navLink("/guides/", "Guides", "guides") + '<a href="/login" class="m-login">Log in</a>' + THEME + SND + "</nav>" +
     '<div class="head-actions">' +
     SND + THEME +
     '<span id="auth-slot"><a class="btn ghost sm login-link" href="/login">Log in</a> <a class="btn sm" href="/signup">Sign up free</a></span>' +
@@ -76,9 +76,9 @@
   foot.className = "site-foot";
   foot.innerHTML =
     '<div class="wrap"><div class="foot-grid">' +
-    '<div><a class="brand" href="/">' + LOGO + 'Writo</a><p style="margin-top:12px;max-width:26em">Honest, fast feedback on Writing Task 2 essays. No hidden charges, no lost text.</p></div>' +
-    '<nav aria-label="Product"><strong>Product</strong><a href="/#check">Check an essay</a><a href="/pricing">Pricing</a><a href="/guides/">Guides</a><a href="/account">My account</a><button type="button" class="link-btn foot-link" data-ideas="idea">Suggest an idea</button><button type="button" class="link-btn foot-link" data-ideas="problem">Report a problem</button></nav>' +
-    '<nav aria-label="Legal"><strong>Legal</strong><a href="/terms">Terms of use</a><a href="/privacy">Privacy policy</a><a href="/refund">Refund policy</a><a href="/disclaimer">Disclaimer</a><a href="/contact">Contact</a></nav>' +
+    '<div><a class="brand" href="/">' + LOGO + 'Writo</a><p style="margin-top:12px;max-width:26em">Honest, fast feedback on Writing Task 2 essays. Free for students.</p></div>' +
+    '<nav aria-label="Product"><strong>Product</strong><a href="/#check">Check an essay</a><a href="/guides/">Guides</a><a href="/account">My account</a><button type="button" class="link-btn foot-link" data-ideas="idea">Suggest an idea</button><button type="button" class="link-btn foot-link" data-ideas="problem">Report a problem</button></nav>' +
+    '<nav aria-label="Legal"><strong>Legal</strong><a href="/terms">Terms of use</a><a href="/privacy">Privacy policy</a><a href="/disclaimer">Disclaimer</a><a href="/contact">Contact</a></nav>' +
     "</div>" +
     '<p class="disclaimer">Writo is not affiliated with IELTS, the British Council, IDP or Cambridge University Press &amp; Assessment. Scores are AI estimates for practice, not official results. &copy; ' + new Date().getFullYear() + " Writo</p></div>";
   document.body.appendChild(foot);
@@ -315,7 +315,7 @@
   document.body.appendChild(pill);
 
   /* ---------- "I want to improve my writing" window ---------- */
-  // Honest early-access window: no paid plan exists yet and nobody is charged.
+  // Early-access window for deeper lessons (free for students).
   // "Notify me" saves the email in the waitlist (/api/waitlist), "I'm interested" saves a vote without an email
   // (/api/feedback, kind "interest"). Both are read by the owner at /inbox.
   var improve;
@@ -327,7 +327,7 @@
       improve.innerHTML =
         '<form method="dialog" class="gate-close"><button class="icon-btn" aria-label="Close">×</button></form>' +
         '<h2 id="improve-title">A deeper way to improve is coming</h2>' +
-        '<div id="improve-main"><p>We are building lessons based on <b>your own mistakes</b>, progress tracking and a personal AI coach. It will be part of a future paid plan. <b class="gift">Nothing is for sale yet and nobody is charged.</b></p>' +
+        '<div id="improve-main"><p>We are building lessons based on <b>your own mistakes</b>, progress tracking and a personal AI coach. <b class="gift">Writo is free for students.</b> Leave your email and we will tell you when it is ready.</p>' +
         '<form id="improve-form" novalidate>' +
         '<div class="field"><label for="improve-email">Email for early access</label><input id="improve-email" type="email" autocomplete="email" placeholder="you@gmail.com"></div>' +
         '<p class="muted small" style="margin:0 0 14px">One email when it opens. No spam. See the <a href="/privacy" target="_blank">Privacy policy</a>.</p>' +

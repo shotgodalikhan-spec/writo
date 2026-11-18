@@ -279,6 +279,7 @@
     errEl.className = "alert err";
     errEl.textContent = r.error;
     errEl.hidden = false;
+    W.sound("error");
   }
 
   essayEl.addEventListener("input", drawQuota);
@@ -357,10 +358,12 @@
       ? '<ul class="fixes">' + mistakes.map(function (m) { return '<li class="t-' + X.classify(m) + '"><s>' + W.esc(m.quote) + "</s> → <b>" + W.esc(m.fix) + '</b><br><span class="muted small">' + W.esc(m.why) + "</span></li>"; }).join("") + "</ul>"
       : "";
     var already = r.already ? '<p class="alert ok already">Already checked' + (r.checkedAt ? " on " + W.date(r.checkedAt) : "") + ". This is your saved result, no check was used.</p>" : "";
+    // Late in the day the site uses a lighter model to serve more people. Say so honestly.
+    var lightNote = r.light && !r.already ? '<p class="alert warn already">Busy day: this check used a lighter AI model, so the estimate can be less precise than usual.</p>' : "";
     var actions = '<div class="next-actions"><button class="btn" type="button" data-new>Check a new essay</button>' +
       '<button class="btn ghost" type="button" data-edit>Edit and re-check</button><button class="link-btn" type="button" data-ideas="idea">Suggest an idea</button><span class="muted small" data-quota>' + W.esc(quotaText()) + "</span></div>";
     var html =
-      '<div class="panel">' + already + '<div class="result-top"><div class="stamp animate" role="img" aria-label="Estimated overall band ' + W.band(r.overall) + '"><div><b>' + W.band(r.overall) + "</b><span>estimated band</span></div></div>" +
+      '<div class="panel">' + already + lightNote + '<div class="result-top"><div class="stamp animate" role="img" aria-label="Estimated overall band ' + W.band(r.overall) + '"><div><b>' + W.band(r.overall) + "</b><span>estimated band</span></div></div>" +
       '<div><h2 style="margin-bottom:.3em">Your estimated band</h2><p class="muted" style="margin:0">A range, not an exact score. Here is how each criterion went.</p>' +
       (!r.loggedIn ? '<p style="margin:10px 0 0"><a href="#save-form" class="small" style="font-weight:700">Keep this result with a free account</a></p>' : "") + "</div></div>" +
       '<div class="crit">' + crit + "</div>" +
@@ -390,5 +393,6 @@
       navigator.clipboard.writeText(r.rewrite).then(function () { W.toast("Paragraph copied"); }, function () { W.toast("Select the text and copy it manually"); });
     });
     resEl.scrollIntoView({ behavior: smooth(), block: "start" });
+    W.sound("done");
   }
 })();

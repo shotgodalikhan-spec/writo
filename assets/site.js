@@ -51,6 +51,10 @@
     '<button type="button" data-mode="light" aria-label="Light theme" title="Light">' + ICONS.light + "</button>" +
     '<button type="button" data-mode="dark" aria-label="Dark theme" title="Dark">' + ICONS.dark + "</button>" +
     '<button type="button" data-mode="system" aria-label="Same as system" title="Same as system">' + ICONS.system + "</button></div>";
+  // Sound toggle: speaker icon, always available. Header on desktop, inside the menu on phones. Sounds are OFF by default.
+  var SND = '<button type="button" class="snd" aria-pressed="false" aria-label="Turn interface sounds on" title="Interface sounds">' +
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4z"/><path class="w" d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13"/><path class="x" d="m16 9 5 6m0-6-5 6"/></svg>' +
+    '<span class="snd-label">Sound off</span></button>';
   var page = document.body.dataset.page || "";
   function navLink(href, text, key) { return '<a href="' + href + '"' + (page === key ? ' aria-current="page"' : "") + ">" + text + "</a>"; }
 
@@ -60,9 +64,9 @@
     '<a class="skip" href="#main">Skip to content</a><div class="wrap">' +
     '<a class="brand" href="/" aria-label="Writo home">' + LOGO + "Writo</a>" +
     '<span class="beta" title="Writo is in beta: scores are estimates">BETA</span>' +
-    '<nav class="nav" id="nav" aria-label="Main">' + navLink("/#check", "Check an essay", "check") + navLink("/#how", "How it works", "how") + navLink("/pricing", "Pricing", "pricing") + navLink("/guides/", "Guides", "guides") + '<a href="/login" class="m-login">Log in</a>' + THEME + "</nav>" +
+    '<nav class="nav" id="nav" aria-label="Main">' + navLink("/#check", "Check an essay", "check") + navLink("/#how", "How it works", "how") + navLink("/pricing", "Pricing", "pricing") + navLink("/guides/", "Guides", "guides") + '<a href="/login" class="m-login">Log in</a>' + THEME + SND + "</nav>" +
     '<div class="head-actions">' +
-    THEME +
+    SND + THEME +
     '<span id="auth-slot"><a class="btn ghost sm login-link" href="/login">Log in</a> <a class="btn sm" href="/signup">Sign up free</a></span>' +
     '<button class="btn quiet sm menu-btn" type="button" aria-expanded="false" aria-controls="nav">Menu</button>' +
     "</div></div>";
@@ -150,6 +154,90 @@
     return step(0);
   };
 
+  /* ---------- Sound (opt-in) ---------- */
+  // Off unless the person turns it on (banner on the first visit, or the speaker icon). The choice is kept in
+  // localStorage ("writo-sound": "on" | "off"). Nothing audio-related is created before the person says yes.
+  // Sounds are tiny tones made in the browser (Web Audio): no files, very quiet, only for clicks and results.
+  var SND_KEY = "writo-sound";
+  var Ctx = window.AudioContext || window.webkitAudioContext;
+  var sndState = null, sndCtx = null, lastTick = 0, storageOk = true;
+  try { sndState = localStorage.getItem(SND_KEY); } catch (e) { storageOk = false; }
+  function sndOn() { return sndState === "on" && Boolean(Ctx); }
+  function ctx() {
+    if (!sndCtx) { try { sndCtx = new Ctx(); } catch (e) { return null; } }
+    if (sndCtx.state === "suspended") { try { sndCtx.resume(); } catch (e) {} }
+    return sndCtx;
+  }
+  function tone(freq, start, dur, gain, type) {
+    var c = ctx();
+    if (!c) return;
+    var t = c.currentTime + start, o = c.createOscillator(), g = c.createGain();
+    o.type = type || "sine";
+    o.frequency.setValueAtTime(freq, t);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(gain, t + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(c.destination);
+    o.start(t); o.stop(t + dur + 0.02);
+  }
+  var SOUNDS = {
+    click: function () { tone(540, 0, 0.06, 0.03); },
+    done: function () { tone(660, 0, 0.18, 0.045); tone(880, 0.11, 0.26, 0.04); },
+    error: function () { tone(220, 0, 0.18, 0.04, "triangle"); }
+  };
+  W.sound = function (name) { if (sndOn() && SOUNDS[name]) SOUNDS[name](); };
+
+  function drawSnd() {
+    var on = sndOn();
+    document.querySelectorAll(".snd").forEach(function (b) {
+      b.setAttribute("aria-pressed", String(on));
+      b.setAttribute("aria-label", on ? "Turn interface sounds off" : "Turn interface sounds on");
+      b.querySelector(".snd-label").textContent = on ? "Sound on" : "Sound off";
+    });
+  }
+  function setSnd(v) {
+    sndState = v;
+    try { localStorage.setItem(SND_KEY, v); } catch (e) {}
+    drawSnd();
+    var bn = document.getElementById("snd-banner");
+    if (bn) bn.remove();
+    if (v === "on") W.sound("click"); // this click is the permission gesture: the audio engine starts here
+  }
+  if (!Ctx) {
+    document.querySelectorAll(".snd").forEach(function (b) { b.remove(); }); // do not offer what cannot work
+  } else {
+    drawSnd();
+    document.addEventListener("click", function (e) {
+      var t = e.target.closest && e.target.closest(".snd");
+      if (t) { setSnd(sndOn() ? "off" : "on"); return; }
+      var d = e.target.closest && e.target.closest("[data-snd]");
+      if (d) setSnd(d.getAttribute("data-snd"));
+    });
+    // A soft tick for buttons, only when sounds are on. Capture phase, so it never waits for page code.
+    document.addEventListener("click", function (e) {
+      if (!sndOn()) return;
+      var t = e.target.closest && e.target.closest("button, a.btn, [role=button], summary, .seg label");
+      if (!t || t.disabled || t.classList.contains("snd") || t.hasAttribute("data-snd")) return;
+      var now = Date.now();
+      if (now - lastTick < 80) return;
+      lastTick = now;
+      W.sound("click");
+    }, true);
+    // First visit: a small question, not a pop-up. It plays nothing. Skipped when the browser cannot remember the answer.
+    var askSound = function () {
+      if (sndState || document.getElementById("snd-banner")) return;
+      if (document.querySelector("dialog[open]")) { setTimeout(askSound, 3000); return; }
+      var bn = document.createElement("div");
+      bn.id = "snd-banner";
+      bn.className = "snd-banner";
+      bn.setAttribute("role", "region");
+      bn.setAttribute("aria-label", "Sound");
+      bn.innerHTML = '<p>Turn on soft interface sounds?</p><div><button class="btn sm" type="button" data-snd="on">Turn on</button><button class="btn ghost sm" type="button" data-snd="off">No sound</button></div>';
+      document.body.appendChild(bn);
+    };
+    if (storageOk && !sndState) setTimeout(askSound, 1500);
+  }
+
   /* ---------- Ideas & problems (on every page) ---------- */
   // One button, two kinds: "idea" (what to add) and "problem" (what to fix). Stored by /api/feedback,
   // read by the owner at /inbox, where they are grouped into themes automatically.
@@ -204,6 +292,7 @@
           text.value = "";
           form.hidden = true;
           ideas.querySelector("#ideas-done").hidden = false;
+          W.sound("done");
         });
       });
     }
@@ -253,6 +342,7 @@
         improve.querySelector("#improve-main").hidden = true;
         improve.querySelector("#improve-done").hidden = false;
         improve.querySelector("#improve-done .fb-thanks").textContent = msg;
+        W.sound("done");
       };
       improve.querySelector("#improve-form").addEventListener("submit", function (e) {
         e.preventDefault();

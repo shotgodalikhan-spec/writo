@@ -275,7 +275,7 @@
       e.preventDefault();
       if (!rating) return;
       var text = document.getElementById("fb-text").value.trim();
-      var done = function () { form.innerHTML = '<p class="fb-thanks">' + HEART + " Thank you! This helps us make Writo better.</p>"; };
+      var done = function () { form.innerHTML = '<p class="fb-thanks">' + HEART + " Thank you! This helps us make Writo better.</p>"; if (W.sound) W.sound("done"); };
       if (!text && stored) return done();
       var sendBtn = form.querySelector("button[type=submit]");
       sendBtn.disabled = true;

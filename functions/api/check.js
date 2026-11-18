@@ -1,14 +1,17 @@
 // Writo essay checker: POST /api/check, diagnostics: GET /api/check
 import { json, readJson, sameOrigin, getUser } from "../../lib/core.js";
-import { LIMITS, quota, spend, cookieHeaders } from "../../lib/quota.js";
+import { LIMITS, quota, spend, cookieHeaders, neuronsUsed } from "../../lib/quota.js";
 import { essayHash, findCheck, saveCheck } from "../../lib/checks.js";
 
-// Fastest reliable model first. Each model gets a time limit, then the next one is tried.
+// Best model first. Each model gets a time limit, then the next one is tried.
+// Late in the day (quota() says mode "light") the best model is skipped: the lighter one costs about half the
+// neurons, so more people can be served before the free allowance runs out.
 const MODELS = [
   "@cf/meta/llama-3.3-70b-instruct-fp8-fast",
   "@cf/meta/llama-4-scout-17b-16e-instruct",
   "@cf/meta/llama-3.1-8b-instruct-fast",
 ];
+const LIGHT_MODELS = MODELS.slice(1);
 const MODEL_TIMEOUT_MS = 20000;
 
 // Daily limits live in lib/quota.js (LIMITS), shared with /api/me.
@@ -188,18 +191,24 @@ export async function onRequestPost({ request, env }) {
   const messages = buildMessages(task, essay);
   const failures = [];
 
-  for (const model of MODELS) {
+  const light = q.mode === "light";
+  const promptChars = messages.reduce((n, m) => n + m.content.length, 0);
+
+  for (const model of light ? LIGHT_MODELS : MODELS) {
     try {
       const out = await withTimeout(env.AI.run(model, { messages, max_tokens: 1800, temperature: 0.2 }), MODEL_TIMEOUT_MS);
-      const parsed = parseModelJSON(extractText(out));
+      const text = extractText(out);
+      const neurons = neuronsUsed(model, out && out.usage, promptChars, text.length); // the model used these even if the answer is not usable
+      const parsed = parseModelJSON(text);
       if (parsed && parsed.rejected === true) {
+        await spend(db, [], neurons);
         return json({ error: "This does not look like an English Task 2 essay" + (parsed.reason ? " (" + String(parsed.reason).slice(0, 200).replace(/\.$/, "") + ")." : ".") + " Your free checks were not used.", rejected: true }, 422, headers);
       }
       const result = parsed && normalize(parsed, essay);
-      if (!result) { failures.push(model + ": unexpected answer format"); continue; }
+      if (!result) { await spend(db, [], neurons); failures.push(model + ": unexpected answer format"); continue; }
 
-      await spend(db, q.keys);
-      const response = { ...result, model, words, remaining: Math.max(0, q.remaining - 1), loggedIn: Boolean(user), saved: false };
+      await spend(db, q.keys, neurons);
+      const response = { ...result, model, light: light || model !== MODELS[0], words, remaining: Math.max(0, q.remaining - 1), loggedIn: Boolean(user), saved: false };
 
       // Account owners: every check is kept, one record per essay.
       if (db && user) {

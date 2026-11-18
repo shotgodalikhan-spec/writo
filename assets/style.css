@@ -543,3 +543,28 @@ mark.miss:focus-visible { outline: 2px solid var(--c); outline-offset: 1px; }
 .improve-card .btn { flex: 0 0 auto; }
 @media (max-width: 520px) { .improve-card .btn { width: 100%; white-space: normal; } }
 .gate.improve .confirm-actions { margin-top: 4px; }
+
+/* Sound: speaker icon (header on desktop, menu on phones) and the first-visit question */
+.snd { display: inline-grid; grid-auto-flow: column; align-items: center; gap: 8px; place-content: center; width: 34px; height: 34px; border: 0; border-radius: 99px; background: var(--sheet-2); color: var(--ink-2); cursor: pointer; transition: color .15s, background .15s; }
+.snd:hover { color: var(--ink); }
+.snd[aria-pressed="true"] { background: var(--sheet); color: var(--pen); box-shadow: var(--shadow); }
+.snd svg { width: 18px; height: 18px; }
+.snd .w { display: none; }
+.snd[aria-pressed="true"] .w { display: inline; }
+.snd[aria-pressed="true"] .x { display: none; }
+.snd-label { display: none; font: 700 .9rem/1 var(--sans); }
+.nav .snd { display: none; }
+@media (max-width: 760px) {
+  .head-actions .snd { display: none; }
+  .nav .snd { display: inline-grid; width: auto; height: 38px; padding: 0 14px; align-self: flex-start; margin-top: 10px; }
+  .nav .snd .snd-label { display: inline; }
+}
+.snd-banner { position: fixed; left: 18px; bottom: 18px; z-index: 40; max-width: 300px; padding: 14px 16px; border-radius: var(--r-m); border: 1px solid var(--rule); background: var(--sheet); color: var(--ink); box-shadow: var(--shadow); }
+.snd-banner p { margin: 0 0 10px; font-weight: 700; }
+.snd-banner div { display: flex; flex-wrap: wrap; gap: 8px; }
+@media (max-width: 520px) { .snd-banner { left: 12px; right: 12px; bottom: 12px; max-width: none; } }
+@media (prefers-reduced-motion: no-preference) { .snd-banner { animation: rise .35s ease-out both; } }
+/* Tablet widths: the speaker icon needs a little room in the header */
+@media (min-width: 761px) and (max-width: 900px) { .nav { margin-left: 4px; gap: 0; } .nav a { padding: 8px 8px; } .head-actions { gap: 6px; } }
+
+.alert.warn { background: var(--marker-soft); color: var(--ink); }

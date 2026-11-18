@@ -16,7 +16,10 @@
     // This browser belongs to the owner: show the "new" badge in the header on other pages, and remember this visit.
     try { localStorage.setItem("writo-owner", "1"); localStorage.setItem("writo-inbox-seen", String(Date.now())); } catch (e) {}
 
-    if (!r.items.length) { box.innerHTML = '<p class="muted">No messages yet. They will appear here as soon as someone rates a check or sends an idea.</p>'; return; }
+    // One-time setup: shows your account id so it can be pinned in the code (blocks anyone else from claiming the owner email).
+    var setup = r.setupAccountId ? '<p class="alert ok">Setup, one time: your account id is <b>' + W.esc(r.setupAccountId) + "</b>. Send it to Claude so access can be tied to your account.</p>" : "";
+
+    if (!r.items.length) { box.innerHTML = setup + '<p class="muted">No messages yet. They will appear here as soon as someone rates a check or sends an idea.</p>'; return; }
 
     var n = r.newSince || { ratings: 0, ideas: 0, problems: 0 };
     var newTotal = n.ratings + n.ideas + n.problems;
@@ -37,7 +40,7 @@
         return '<label><input type="radio" name="inbox-show" value="' + k + '"' + (i ? "" : " checked") + "><span>" + (k === "all" ? "All" : KIND[k] + "s") + "</span></label>";
       }).join("") + "</div>";
 
-    box.innerHTML = summary + filter + '<ul class="history inbox-list" id="inbox-list"></ul>';
+    box.innerHTML = setup + summary + filter + '<ul class="history inbox-list" id="inbox-list"></ul>';
     var draw = function (k) {
       var list = r.items.filter(function (f) { return k === "all" || f.kind === k; });
       document.getElementById("inbox-list").innerHTML = list.length ? list.map(function (f) {

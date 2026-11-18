@@ -1,11 +1,20 @@
 // Owner-only feedback inbox: GET /api/admin/feedback
-// Only the site owner's account can read it. The owner is identified by the SHA-256 of their
-// account email, so the email itself is not written in this public code.
+// Only the site owner's account can read it.
+// Owner = the account whose id is in OWNER_USER_IDS. An account id is random and cannot be claimed by
+// someone else, unlike an email address (sign-up does not verify email ownership).
+// Setup, once: log in as yourself, open /inbox, copy the "account id" shown there into OWNER_USER_IDS.
+// Until then (list empty) the account with the owner email below is accepted, so the page works on day one.
 // Ideas and problem reports are sorted into themes automatically by keywords (English and Russian),
 // so the owner sees at a glance what people ask for most. No AI is used, so it costs nothing.
 import { json, getUser, sha256Hex } from "../../../lib/core.js";
 
-const OWNER_EMAIL_SHA256 = ["3e93bb3339009382a8166ac29f5eca1f6a834a6a0743a449861152fe321160de"];
+export const OWNER_USER_IDS = [];
+const OWNER_EMAIL_SHA256 = ["3e93bb3339009382a8166ac29f5eca1f6a834a6a0743a449861152fe321160de"]; // setup fallback only
+
+export async function isOwner(user, ids = OWNER_USER_IDS) {
+  if (ids.length) return ids.includes(user.id);
+  return OWNER_EMAIL_SHA256.includes(await sha256Hex(String(user.email).trim().toLowerCase()));
+}
 
 // Theme -> words that point to it. Lower-case; Russian stems match any ending.
 export const THEMES = {
@@ -14,7 +23,7 @@ export const THEMES = {
   "Score accuracy": ["accura", "wrong score", "too high", "too low", "unfair", "band is", "score is", "точн", "оценк", "балл", "завыш", "заниж", "неправильн"],
   "More checks / limits": ["limit", "more checks", "only 2", "only 5", "free checks", "unlimited", "лимит", "попыт", "больше провер", "мало провер"],
   "Feedback detail": ["explain", "more detail", "examples", "vocabulary", "grammar", "synonym", "suggest", "подробн", "объясн", "пример", "лексик", "граммат", "синоним"],
-  "Language / translation": ["russian", "kazakh", "uzbek", "translate", "language", "русск", "казах", "узбек", "перев", "язык"],
+  "Language / translation": ["russian", "kazakh", "uzbek", "translat", "русск", "казах", "узбек", "перев", "язык"],
   "Speed": ["slow", "fast", "speed", "loading", "долго", "медлен", "быстр", "загруз"],
   "Bugs / errors": ["bug", "error", "broken", "doesn't work", "does not work", "not working", "crash", "failed", "ошибк", "баг", "не работа", "сломал", "вылет"],
   "Design / mobile": ["design", "mobile", "phone", "dark", "button", "font", "colour", "color", "дизайн", "телефон", "кнопк", "шрифт", "цвет", "тёмн", "темн"],
@@ -22,15 +31,20 @@ export const THEMES = {
   "Price / payment": ["price", "pay", "paid", "cost", "subscription", "цена", "плат", "стоим", "подписк", "деньг"],
 };
 
+// English words must start a word ("fast" matches "faster" but not "breakfast", "pay" matches "payment"
+// but not "repay"). Russian stems match anywhere, because Russian words change their endings and prefixes.
+const MATCHERS = Object.fromEntries(Object.entries(THEMES).map(([k, words]) => [k, words.map((w) =>
+  /[a-z]/.test(w) ? new RegExp("(?:^|[^a-z])" + w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) : new RegExp(w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")))]));
+
 export function themesOf(text) {
-  const t = " " + String(text || "").toLowerCase() + " ";
-  return Object.keys(THEMES).filter((k) => THEMES[k].some((w) => t.includes(w)));
+  const t = String(text || "").toLowerCase();
+  return Object.keys(MATCHERS).filter((k) => MATCHERS[k].some((re) => re.test(t)));
 }
 
 export async function onRequestGet({ request, env }) {
   const user = await getUser(env, request);
   if (!user) return json({ error: "Log in with the owner account to see feedback." }, 401);
-  if (!OWNER_EMAIL_SHA256.includes(await sha256Hex(String(user.email).trim().toLowerCase()))) return json({ error: "This page is only for the site owner." }, 403);
+  if (!(await isOwner(user))) return json({ error: "This page is only for the site owner." }, 403);
   if (!env.DB) return json({ error: "The database is not available." }, 503);
 
   let rows = [];
@@ -53,6 +67,8 @@ export async function onRequestGet({ request, env }) {
   };
   const since = Number(new URL(request.url).searchParams.get("since")) || 0;
   return json({
+    // Shown only until OWNER_USER_IDS is filled in (see the top of this file).
+    setupAccountId: OWNER_USER_IDS.length ? null : user.id,
     ratings: {
       total: ratings.length,
       hearts: ratings.filter((r) => r.rating === 5).length,

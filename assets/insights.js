@@ -249,9 +249,14 @@
     var rating = 0, more = form.querySelector(".fb-more");
     // One id per box: changing the rating or adding text updates the same row on the server.
     var id = Array.prototype.map.call(crypto.getRandomValues(new Uint8Array(8)), function (b) { return ("0" + b.toString(16)).slice(-2); }).join("");
+    var stored = false; // true once the server has confirmed the rating
+    // "Already rated, do not ask for a week" is remembered only after the server said yes, never before.
     function send(text) {
-      try { localStorage.setItem(FB_KEY, String(Date.now())); } catch (e) {}
-      return W.api("/api/feedback", { id: id, rating: rating, text: text || "", band: context && context.band, page: location.pathname });
+      return W.api("/api/feedback", { id: id, rating: rating, text: text || "", band: context && context.band, page: location.pathname }).then(function (r) {
+        if (r._ok) { stored = true; try { localStorage.setItem(FB_KEY, String(Date.now())); } catch (e) {} }
+        else W.toast(r.error || "Could not send your rating. Please try again.");
+        return r;
+      });
     }
     form.querySelectorAll("[data-v]").forEach(function (b) {
       b.addEventListener("click", function () {
@@ -271,9 +276,10 @@
       if (!rating) return;
       var text = document.getElementById("fb-text").value.trim();
       var done = function () { form.innerHTML = '<p class="fb-thanks">' + HEART + " Thank you! This helps us make Writo better.</p>"; };
-      if (!text) return done();
-      form.querySelector("button[type=submit]").disabled = true;
-      send(text).then(done, done);
+      if (!text && stored) return done();
+      var sendBtn = form.querySelector("button[type=submit]");
+      sendBtn.disabled = true;
+      send(text).then(function (r) { if (r._ok) done(); else sendBtn.disabled = false; });
     });
   };
 })();

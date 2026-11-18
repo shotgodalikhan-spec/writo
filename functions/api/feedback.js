@@ -5,7 +5,7 @@
 // The "feedback" table is created on first use. Owners read it at /inbox (functions/api/admin/feedback.js).
 import { json, readJson, sameOrigin, ipKey } from "../../lib/core.js";
 
-const MAX_PER_DAY = 10; // per network, to keep junk out
+const MAX_PER_DAY = 50; // per network and day, to keep junk out (many students share one network address)
 const KINDS = ["rating", "idea", "problem"];
 
 const SCHEMA = "CREATE TABLE IF NOT EXISTS feedback (id TEXT PRIMARY KEY, created_at INTEGER NOT NULL, ip TEXT NOT NULL, rating INTEGER NOT NULL, text TEXT, band TEXT, page TEXT, kind TEXT)";
